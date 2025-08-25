@@ -5,29 +5,25 @@ import morgan from 'morgan';
 import dotenv from 'dotenv';
 import compression from 'compression';
 import cookieParser from 'cookie-parser';
-import rateLimit from 'express-rate-limit';
 import { testPrismaConnection } from './config/prisma';
 import passport from './config/passport';
+import { generalLimiter, addRateLimitHeaders } from './middleware/rateLimiting';
 
 // Routes
 import authRoutes from './routes/auth';
 import documentRoutes from './routes/documents';
+import chatRoutes from './routes/chat';
+import docsRoutes from './routes/docs';
 
 dotenv.config();
 
 const app: Express = express();
 const port = process.env.PORT || 3001;
 
-// Rate limiting
-const limiter = rateLimit({
-  windowMs: 15 * 60 * 1000, // 15 minutes
-  max: 100, // limit each IP to 100 requests per windowMs
-  message: 'Too many requests from this IP, please try again later.'
-});
-
 // Security middleware
 app.use(helmet());
-app.use(limiter);
+app.use(addRateLimitHeaders);
+app.use(generalLimiter);
 
 // CORS configuration
 app.use(cors({
@@ -50,6 +46,8 @@ app.use(passport.initialize());
 // API Routes
 app.use('/auth', authRoutes);
 app.use('/documents', documentRoutes);
+app.use('/chat', chatRoutes);
+app.use('/docs', docsRoutes);
 
 // Health check endpoint
 app.get('/health', async (_req: Request, res: Response) => {
@@ -73,7 +71,8 @@ app.get('/', (_req: Request, res: Response) => {
       health: '/health',
       auth: '/auth',
       documents: '/documents',
-      docs: '/api/docs'
+      chat: '/chat',
+      docs: '/docs'
     }
   });
 });

@@ -76,6 +76,20 @@ export class AIService {
       return [];
     }
   }
+
+  async generateEmbedding(text: string): Promise<number[]> {
+    try {
+      const response = await openai.embeddings.create({
+        model: "text-embedding-3-small",
+        input: text.slice(0, 8000)
+      });
+
+      return response.data[0]?.embedding || [];
+    } catch (error) {
+      console.error('Embedding generation error:', error);
+      throw new Error('Failed to generate embedding');
+    }
+  }
 }
 
 export default new AIService();

@@ -97,7 +97,7 @@ A TypeScript-based backend server for processing and summarizing research papers
 - [x] Configure OpenAI SDK to use OpenRouter endpoint
 - [x] Implement text summarization service
 - [x] Implement chat functionality
-- [ ] Add vector embedding generation
+- [x] Add vector embedding generation
 - [x] Create AI prompt templates
 - [x] Add error handling for AI service failures
 
@@ -106,24 +106,24 @@ A TypeScript-based backend server for processing and summarizing research papers
 - [x] Create document upload routes
 - [x] Create document processing routes
 - [x] Create summarization routes
-- [ ] Create chat/query routes
-- [ ] Add API documentation endpoints
+- [x] Create chat/query routes
+- [x] Add API documentation endpoints
 
 ### 9. Testing & Quality
-- [ ] Set up Jest for testing
-- [ ] Write unit tests for utilities
-- [ ] Write integration tests for API endpoints
-- [ ] Add API input validation
-- [ ] Implement rate limiting
-- [ ] Add request logging and monitoring
+- [x] Set up Jest for testing
+- [x] Write unit tests for utilities
+- [x] Write integration tests for API endpoints
+- [x] Add API input validation with Zod
+- [x] Implement rate limiting
+- [x] Add request logging and monitoring
 
 ### 10. Deployment Preparation
-- [ ] Configure build scripts
-- [ ] Set up environment configuration for production
-- [ ] Create Docker configuration (optional)
-- [ ] Set up CI/CD pipeline
-- [ ] Configure hosting on Railway/Render
-- [ ] Set up environment variables on hosting platform
+- [x] Configure build scripts
+- [x] Set up environment configuration for production
+- [x] Create Docker configuration
+- [x] Set up CI/CD pipeline
+- [x] Configure hosting deployment scripts
+- [x] Set up environment variables templates
 
 ## Dependencies
 
@@ -146,7 +146,8 @@ A TypeScript-based backend server for processing and summarizing research papers
   "file-type": "^18.7.0",
   "openai": "^4.20.1",
   "dotenv": "^16.3.1",
-  "@supabase/supabase-js": "^2.38.5"
+  "@supabase/supabase-js": "^2.38.5",
+  "zod": "^3.22.4"
 }
 ```
 
@@ -340,13 +341,240 @@ export async function summarizeText(text: string): Promise<string> {
 
 ## API Endpoints
 
-- `GET /health` - Health check
-- `POST /auth/register` - User registration
-- `POST /auth/login` - User login
-- `GET /auth/google` - Google OAuth login
-- `POST /documents/upload` - Upload document
-- `POST /documents/summarize` - Summarize document
-- `POST /chat` - Chat with document
+### 🏥 Health & Information
+- `GET /health` - Health check and system status
+- `GET /` - API information and available endpoints
+- `GET /docs` - Complete API documentation
+
+### 🔐 Authentication
+- `POST /auth/register` - Register new user account
+- `POST /auth/login` - Login with email and password
+- `GET /auth/profile` - Get current user profile (requires JWT)
+- `PUT /auth/profile` - Update user profile (requires JWT)
+- `POST /auth/change-password` - Change user password (requires JWT)
+- `POST /auth/logout` - Logout user (client-side token removal)
+- `GET /auth/me` - Get current user info (alternative to /profile)
+- `GET /auth/verify` - Verify JWT token validity
+
+### 🌐 Google OAuth
+- `GET /auth/google` - Initiate Google OAuth login
+- `GET /auth/google/callback` - Google OAuth callback handler
+
+### 📄 Document Management
+- `GET /documents` - Get user documents with pagination (requires JWT)
+- `POST /documents/upload` - Upload and process document (requires JWT)
+- `GET /documents/:id` - Get specific document details (requires JWT)
+- `DELETE /documents/:id` - Delete document (requires JWT)
+- `POST /documents/:id/summarize` - Generate new summary for document (requires JWT)
+- `POST /documents/:id/embeddings` - Generate vector embeddings for document (requires JWT)
+- `POST /documents/search` - Search similar documents using semantic query (requires JWT)
+
+### 💬 Chat & AI Interaction
+- `POST /chat/sessions` - Create new chat session for a document (requires JWT)
+- `GET /chat/sessions` - Get user's chat sessions with pagination (requires JWT)
+- `GET /chat/sessions/:id` - Get specific chat session with message history (requires JWT)
+- `DELETE /chat/sessions/:id` - Delete chat session (requires JWT)
+- `POST /chat/sessions/:id/messages` - Send message in chat session (requires JWT)
+- `POST /chat/query` - Quick query without creating persistent session (requires JWT)
+
+### 📊 Rate Limits
+- **General API**: 100 requests per 15 minutes per IP
+- **Authentication**: 5 attempts per 15 minutes per IP
+- **File Upload**: 10 uploads per hour per IP
+- **AI Operations**: 50 requests per hour per IP
+- **Search**: 100 searches per hour per IP
+
+### 🛡️ Security Features
+- JWT-based authentication
+- Google OAuth 2.0 integration
+- Password strength validation
+- Input sanitization and validation with Zod
+- Rate limiting protection
+- CORS configuration
+- Security headers (Helmet)
+- File type validation
+- Request logging
+
+## API Usage Examples
+
+### Authentication
+
+#### Register New User
+```bash
+POST /auth/register
+Content-Type: application/json
+
+{
+  "name": "John Doe",
+  "email": "john@example.com",
+  "password": "SecurePass123!"
+}
+```
+
+#### Login
+```bash
+POST /auth/login
+Content-Type: application/json
+
+{
+  "email": "john@example.com",
+  "password": "SecurePass123!"
+}
+
+# Response
+{
+  "message": "Login successful",
+  "user": {
+    "id": 1,
+    "email": "john@example.com",
+    "name": "John Doe"
+  },
+  "token": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9..."
+}
+```
+
+#### Google OAuth
+```bash
+# Redirect user to:
+GET /auth/google
+
+# User will be redirected back to:
+# http://localhost:3000/auth/callback?token=JWT_TOKEN
+```
+
+### Document Management
+
+#### Upload Document
+```bash
+POST /documents/upload
+Authorization: Bearer YOUR_JWT_TOKEN
+Content-Type: multipart/form-data
+
+# Form data:
+document: [PDF/DOCX/TXT file]
+title: "Research Paper Title" (optional)
+```
+
+#### Get Documents
+```bash
+GET /documents?page=1&limit=10&sortBy=createdAt&sortOrder=desc
+Authorization: Bearer YOUR_JWT_TOKEN
+
+# Response
+{
+  "data": [...],
+  "pagination": {
+    "page": 1,
+    "limit": 10,
+    "total": 25,
+    "totalPages": 3,
+    "hasNext": true,
+    "hasPrev": false
+  }
+}
+```
+
+#### Generate Summary
+```bash
+POST /documents/123/summarize
+Authorization: Bearer YOUR_JWT_TOKEN
+
+# Response
+{
+  "message": "Summary generated successfully",
+  "summary": "This research paper discusses..."
+}
+```
+
+#### Search Similar Documents
+```bash
+POST /documents/search
+Authorization: Bearer YOUR_JWT_TOKEN
+Content-Type: application/json
+
+{
+  "query": "machine learning algorithms",
+  "limit": 5
+}
+```
+
+### Chat & AI Interaction
+
+#### Create Chat Session
+```bash
+POST /chat/sessions
+Authorization: Bearer YOUR_JWT_TOKEN
+Content-Type: application/json
+
+{
+  "documentId": 123,
+  "title": "Discussion about ML paper" (optional)
+}
+```
+
+#### Send Message
+```bash
+POST /chat/sessions/456/messages
+Authorization: Bearer YOUR_JWT_TOKEN
+Content-Type: application/json
+
+{
+  "content": "What are the main findings of this paper?"
+}
+
+# Response
+{
+  "userMessage": {...},
+  "aiResponse": {
+    "content": "The main findings include..."
+  }
+}
+```
+
+#### Quick Query
+```bash
+POST /chat/query
+Authorization: Bearer YOUR_JWT_TOKEN
+Content-Type: application/json
+
+{
+  "documentId": 123,
+  "message": "Summarize the methodology section"
+}
+```
+
+### Error Responses
+
+#### Validation Error (400)
+```json
+{
+  "error": "Validation failed",
+  "details": [
+    {
+      "field": "email",
+      "message": "Must be a valid email address",
+      "value": "invalid-email"
+    }
+  ]
+}
+```
+
+#### Authentication Error (401)
+```json
+{
+  "error": "Access denied",
+  "message": "Invalid token"
+}
+```
+
+#### Rate Limit Error (429)
+```json
+{
+  "error": "Too many requests",
+  "message": "You have exceeded the rate limit. Please try again later.",
+  "retryAfter": "15 minutes"
+}
+```
 
 ## License
 

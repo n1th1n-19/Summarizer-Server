@@ -5,23 +5,32 @@
   "main": "dist/server.js",
   "scripts": {
     "start": "node dist/server.js",
+    "start:prod": "NODE_ENV=production node dist/server.js",
     "dev": "nodemon src/server.ts",
-    "build": "prisma generate && tsc",
+    "build": "npm run clean && npm run typecheck && npm run lint && npm run db:generate && tsc",
+    "build:prod": "NODE_ENV=production npm run build",
     "clean": "rimraf dist",
     "prebuild": "npm run clean",
+    "postbuild": "npm run test:ci",
     "lint": "eslint src/**/*.ts",
     "lint:fix": "eslint src/**/*.ts --fix",
     "typecheck": "tsc --noEmit",
     "test": "jest",
+    "test:ci": "jest --ci --coverage --watchAll=false",
     "test:watch": "jest --watch",
     "test:coverage": "jest --coverage",
+    "validate": "npm run typecheck && npm run lint && npm run test:ci",
     "db:generate": "prisma generate",
     "db:push": "prisma db push",
     "db:migrate": "prisma migrate dev",
+    "db:migrate:prod": "prisma migrate deploy",
     "db:reset": "prisma migrate reset",
     "db:studio": "prisma studio",
     "db:seed": "tsx prisma/seed.ts",
-    "postinstall": "prisma generate"
+    "postinstall": "prisma generate",
+    "docker:build": "docker build -t summarizer-server .",
+    "docker:run": "docker run -p 3001:3001 --env-file .env summarizer-server",
+    "health": "curl -f http://localhost:3001/health || exit 1"
   },
   "keywords": [
     "ai",
@@ -46,7 +55,6 @@
     "dotenv": "^16.3.1",
     "express": "^4.18.2",
     "express-rate-limit": "^7.1.5",
-    "express-validator": "^7.0.1",
     "file-type": "^18.7.0",
     "helmet": "^7.1.0",
     "jsonwebtoken": "^9.0.2",
@@ -60,7 +68,8 @@
     "pdf-parse": "^1.1.1",
     "pg": "^8.16.3",
     "prisma": "^6.14.0",
-    "xlsx": "^0.18.5"
+    "xlsx": "^0.18.5",
+    "zod": "^3.25.76"
   },
   "devDependencies": {
     "@types/bcrypt": "^5.0.1",

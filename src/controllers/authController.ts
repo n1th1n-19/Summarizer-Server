@@ -1,5 +1,4 @@
 import { Request, Response } from 'express';
-import { validationResult } from 'express-validator';
 import userService from '../services/userService';
 import { hashPassword, comparePassword, validatePassword } from '../utils/password';
 import { generateToken } from '../middleware/auth';
@@ -9,15 +8,6 @@ export class AuthController {
   // Register new user
   async register(req: Request, res: Response): Promise<void> {
     try {
-      // Check validation errors
-      const errors = validationResult(req);
-      if (!errors.isEmpty()) {
-        res.status(400).json({
-          error: 'Validation failed',
-          details: errors.array()
-        });
-        return;
-      }
 
       const { email, password, name } = req.body;
 
@@ -80,15 +70,6 @@ export class AuthController {
   // Login user
   async login(req: Request, res: Response): Promise<void> {
     try {
-      // Check validation errors
-      const errors = validationResult(req);
-      if (!errors.isEmpty()) {
-        res.status(400).json({
-          error: 'Validation failed',
-          details: errors.array()
-        });
-        return;
-      }
 
       const { email, password } = req.body;
 
@@ -184,15 +165,6 @@ export class AuthController {
         return;
       }
 
-      // Check validation errors
-      const errors = validationResult(req);
-      if (!errors.isEmpty()) {
-        res.status(400).json({
-          error: 'Validation failed',
-          details: errors.array()
-        });
-        return;
-      }
 
       const { name, email } = req.body;
       const updateData: any = {};
@@ -266,15 +238,6 @@ export class AuthController {
         return;
       }
 
-      // Check validation errors
-      const errors = validationResult(req);
-      if (!errors.isEmpty()) {
-        res.status(400).json({
-          error: 'Validation failed',
-          details: errors.array()
-        });
-        return;
-      }
 
       const { currentPassword, newPassword } = req.body;
 

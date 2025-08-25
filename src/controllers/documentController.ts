@@ -84,7 +84,7 @@ export class DocumentController {
 
       const page = parseInt(req.query.page as string) || 1;
       const limit = parseInt(req.query.limit as string) || 10;
-      const sortBy = req.query.sortBy as string || 'created_at';
+      const sortBy = req.query.sortBy as string || 'createdAt';
       const sortOrder = (req.query.sortOrder as string)?.toLowerCase() === 'asc' ? 'asc' : 'desc';
 
       const result = await documentService.findByUserId(user.id, {
@@ -211,6 +211,78 @@ export class DocumentController {
       res.status(500).json({
         error: 'Internal server error',
         message: 'Failed to generate summary'
+      });
+    }
+  }
+
+  async generateEmbeddings(req: Request, res: Response): Promise<void> {
+    try {
+      const user = req.user as PrismaUser;
+      if (!user) {
+        res.status(401).json({ error: 'Authentication required' });
+        return;
+      }
+
+      const documentId = parseInt(req.params.id);
+      if (isNaN(documentId)) {
+        res.status(400).json({ error: 'Invalid document ID' });
+        return;
+      }
+
+      const document = await documentService.findByUserIdAndDocumentId(user.id, documentId);
+      if (!document) {
+        res.status(404).json({ error: 'Document not found' });
+        return;
+      }
+
+      if (!document.extractedText) {
+        res.status(400).json({ error: 'No text available for embedding generation' });
+        return;
+      }
+
+      await documentService.generateAndStoreEmbeddings(documentId);
+
+      res.json({
+        message: 'Embeddings generated successfully',
+        documentId
+      });
+    } catch (error) {
+      console.error('Embedding generation error:', error);
+      res.status(500).json({
+        error: 'Internal server error',
+        message: 'Failed to generate embeddings'
+      });
+    }
+  }
+
+  async searchSimilar(req: Request, res: Response): Promise<void> {
+    try {
+
+      const user = req.user as PrismaUser;
+      if (!user) {
+        res.status(401).json({ error: 'Authentication required' });
+        return;
+      }
+
+      const { query } = req.body;
+      const limit = parseInt(req.body.limit as string) || 5;
+
+      const similarDocuments = await documentService.searchSimilarDocuments(
+        user.id, 
+        query, 
+        limit
+      );
+
+      res.json({
+        query,
+        results: similarDocuments,
+        count: similarDocuments.length
+      });
+    } catch (error) {
+      console.error('Search similar documents error:', error);
+      res.status(500).json({
+        error: 'Internal server error',
+        message: 'Failed to search similar documents'
       });
     }
   }

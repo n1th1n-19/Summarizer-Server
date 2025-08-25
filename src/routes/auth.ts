@@ -1,71 +1,29 @@
 import express from 'express';
-import { body } from 'express-validator';
 import passport from '../config/passport';
 import authController from '../controllers/authController';
 import { authenticateToken, generateToken } from '../middleware/auth';
+import { validateRequest, sanitizeInput } from '../middleware/zodValidation';
+import { authLimiter } from '../middleware/rateLimiting';
+import { 
+  registerSchema, 
+  loginSchema, 
+  updateProfileSchema, 
+  changePasswordSchema 
+} from '../schemas';
 import type { User as PrismaUser } from '@prisma/client';
 
 const router = express.Router();
 
-// Validation middleware for registration
-const registerValidation = [
-  body('email')
-    .isEmail()
-    .normalizeEmail()
-    .withMessage('Please provide a valid email address'),
-  body('password')
-    .isLength({ min: 8 })
-    .withMessage('Password must be at least 8 characters long'),
-  body('name')
-    .trim()
-    .isLength({ min: 2, max: 50 })
-    .withMessage('Name must be between 2 and 50 characters')
-];
-
-// Validation middleware for login
-const loginValidation = [
-  body('email')
-    .isEmail()
-    .normalizeEmail()
-    .withMessage('Please provide a valid email address'),
-  body('password')
-    .notEmpty()
-    .withMessage('Password is required')
-];
-
-// Validation middleware for profile update
-const updateProfileValidation = [
-  body('email')
-    .optional()
-    .isEmail()
-    .normalizeEmail()
-    .withMessage('Please provide a valid email address'),
-  body('name')
-    .optional()
-    .trim()
-    .isLength({ min: 2, max: 50 })
-    .withMessage('Name must be between 2 and 50 characters')
-];
-
-// Validation middleware for password change
-const changePasswordValidation = [
-  body('currentPassword')
-    .notEmpty()
-    .withMessage('Current password is required'),
-  body('newPassword')
-    .isLength({ min: 8 })
-    .withMessage('New password must be at least 8 characters long')
-];
 
 // @route   POST /auth/register
 // @desc    Register new user
 // @access  Public
-router.post('/register', registerValidation, authController.register);
+router.post('/register', authLimiter, sanitizeInput, validateRequest(registerSchema), authController.register);
 
 // @route   POST /auth/login
 // @desc    Login user
 // @access  Public
-router.post('/login', loginValidation, authController.login);
+router.post('/login', authLimiter, sanitizeInput, validateRequest(loginSchema), authController.login);
 
 // @route   GET /auth/profile
 // @desc    Get current user profile
@@ -75,12 +33,12 @@ router.get('/profile', authenticateToken, authController.getProfile);
 // @route   PUT /auth/profile
 // @desc    Update user profile
 // @access  Private
-router.put('/profile', authenticateToken, updateProfileValidation, authController.updateProfile);
+router.put('/profile', authenticateToken, sanitizeInput, validateRequest(updateProfileSchema), authController.updateProfile);
 
 // @route   POST /auth/change-password
 // @desc    Change user password
 // @access  Private
-router.post('/change-password', authenticateToken, changePasswordValidation, authController.changePassword);
+router.post('/change-password', authenticateToken, sanitizeInput, validateRequest(changePasswordSchema), authController.changePassword);
 
 // @route   POST /auth/logout
 // @desc    Logout user (client-side token removal)
