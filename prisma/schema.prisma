@@ -1,0 +1,100 @@
+// This is your Prisma schema file,
+// learn more about it in the docs: https://pris.ly/d/prisma-schema
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider  = "postgresql"
+  url       = env("DATABASE_URL")
+  directUrl = env("DIRECT_URL")
+}
+
+model User {
+  id           Int      @id @default(autoincrement())
+  email        String   @unique
+  passwordHash String?  @map("password_hash")
+  googleId     String?  @unique @map("google_id")
+  name         String
+  avatarUrl    String?  @map("avatar_url")
+  createdAt    DateTime @default(now()) @map("created_at")
+  updatedAt    DateTime @updatedAt @map("updated_at")
+
+  // Relations
+  documents     Document[]
+  chatSessions  ChatSession[]
+
+  @@map("users")
+}
+
+model Document {
+  id            Int                @id @default(autoincrement())
+  userId        Int                @map("user_id")
+  title         String
+  fileName      String             @map("file_name")
+  fileType      String             @map("file_type")
+  fileSize      Int                @map("file_size")
+  fileUrl       String?            @map("file_url")
+  extractedText String?            @map("extracted_text") @db.Text
+  summary       String?            @db.Text
+  status        DocumentStatus     @default(PROCESSING)
+  createdAt     DateTime           @default(now()) @map("created_at")
+  updatedAt     DateTime           @updatedAt @map("updated_at")
+
+  // Relations
+  user         User                @relation(fields: [userId], references: [id], onDelete: Cascade)
+  embeddings   DocumentEmbedding[]
+  chatSessions ChatSession[]
+
+  @@map("documents")
+}
+
+model DocumentEmbedding {
+  id         Int      @id @default(autoincrement())
+  documentId Int      @map("document_id")
+  chunkText  String   @map("chunk_text") @db.Text
+  chunkIndex Int      @map("chunk_index")
+  embedding  Float[]  // PostgreSQL array of floats for vector storage
+  createdAt  DateTime @default(now()) @map("created_at")
+
+  // Relations
+  document Document @relation(fields: [documentId], references: [id], onDelete: Cascade)
+
+  @@map("document_embeddings")
+}
+
+model ChatSession {
+  id          Int      @id @default(autoincrement())
+  userId      Int      @map("user_id")
+  documentId  Int      @map("document_id")
+  sessionName String?  @map("session_name")
+  createdAt   DateTime @default(now()) @map("created_at")
+  updatedAt   DateTime @updatedAt @map("updated_at")
+
+  // Relations
+  user     User          @relation(fields: [userId], references: [id], onDelete: Cascade)
+  document Document      @relation(fields: [documentId], references: [id], onDelete: Cascade)
+  messages ChatMessage[]
+
+  @@map("chat_sessions")
+}
+
+model ChatMessage {
+  id        Int      @id @default(autoincrement())
+  sessionId Int      @map("session_id")
+  message   String   @db.Text
+  response  String   @db.Text
+  createdAt DateTime @default(now()) @map("created_at")
+
+  // Relations
+  session ChatSession @relation(fields: [sessionId], references: [id], onDelete: Cascade)
+
+  @@map("chat_messages")
+}
+
+enum DocumentStatus {
+  PROCESSING
+  COMPLETED
+  FAILED
+}
