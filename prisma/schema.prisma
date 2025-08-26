@@ -14,8 +14,8 @@ datasource db {
 model User {
   id           Int      @id @default(autoincrement())
   email        String   @unique
-  passwordHash String?  @map("password_hash")
-  googleId     String?  @unique @map("google_id")
+  passwordHash String?  @map("password_hash") // Optional for backwards compatibility
+  googleId     String   @unique @map("google_id") // Required for Google OAuth only
   name         String
   avatarUrl    String?  @map("avatar_url")
   createdAt    DateTime @default(now()) @map("created_at")

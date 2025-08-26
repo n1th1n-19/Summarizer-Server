@@ -1,37 +1,6 @@
 import { z } from 'zod';
 
-// Password validation schema with comprehensive requirements
-export const passwordSchema = z.string()
-  .min(8, 'Password must be at least 8 characters long')
-  .regex(/[A-Z]/, 'Password must contain at least one uppercase letter')
-  .regex(/[a-z]/, 'Password must contain at least one lowercase letter')
-  .regex(/\d/, 'Password must contain at least one number')
-  .regex(/[!@#$%^&*(),.?":{}|<>]/, 'Password must contain at least one special character');
-
-// Base user schemas
-export const registerSchema = z.object({
-  body: z.object({
-    name: z.string()
-      .trim()
-      .min(2, 'Name must be at least 2 characters')
-      .max(50, 'Name must not exceed 50 characters')
-      .regex(/^[a-zA-Z\s]+$/, 'Name can only contain letters and spaces'),
-    email: z.string()
-      .email('Please provide a valid email address')
-      .toLowerCase(),
-    password: passwordSchema
-  })
-});
-
-export const loginSchema = z.object({
-  body: z.object({
-    email: z.string()
-      .email('Please provide a valid email address')
-      .toLowerCase(),
-    password: z.string().min(1, 'Password is required')
-  })
-});
-
+// User profile schema (Google OAuth only)
 export const updateProfileSchema = z.object({
   body: z.object({
     name: z.string()
@@ -39,18 +8,6 @@ export const updateProfileSchema = z.object({
       .min(2, 'Name must be at least 2 characters')
       .max(50, 'Name must not exceed 50 characters')
       .regex(/^[a-zA-Z\s]+$/, 'Name can only contain letters and spaces')
-      .optional(),
-    email: z.string()
-      .email('Please provide a valid email address')
-      .toLowerCase()
-      .optional()
-  })
-});
-
-export const changePasswordSchema = z.object({
-  body: z.object({
-    currentPassword: z.string().min(1, 'Current password is required'),
-    newPassword: passwordSchema
   })
 });
 
@@ -137,10 +94,7 @@ export const quickQuerySchema = z.object({
 });
 
 // Type exports for TypeScript
-export type RegisterInput = z.infer<typeof registerSchema>['body'];
-export type LoginInput = z.infer<typeof loginSchema>['body'];
 export type UpdateProfileInput = z.infer<typeof updateProfileSchema>['body'];
-export type ChangePasswordInput = z.infer<typeof changePasswordSchema>['body'];
 export type UploadDocumentInput = z.infer<typeof uploadDocumentSchema>['body'];
 export type DocumentParams = z.infer<typeof documentParamsSchema>['params'];
 export type DocumentsQuery = z.infer<typeof documentsQuerySchema>['query'];

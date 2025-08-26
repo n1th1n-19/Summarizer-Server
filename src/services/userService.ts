@@ -4,17 +4,16 @@ import prisma from '../config/prisma';
 export interface CreateUserData {
   email: string;
   passwordHash?: string | null;
-  googleId?: string | null;
+  googleId: string; // Required for Google OAuth only
   name: string;
   avatarUrl?: string | null;
 }
 
 export interface UpdateUserData {
-  email?: string | null;
-  name?: string | null;
+  name?: string;
   avatarUrl?: string | null;
   passwordHash?: string | null;
-  googleId?: string | null;
+  googleId?: string; // Can be updated but must be string if provided
 }
 
 export class UserService {
@@ -24,7 +23,7 @@ export class UserService {
         data: {
           email: userData.email,
           passwordHash: userData.passwordHash || null,
-          googleId: userData.googleId || null,
+          googleId: userData.googleId,
           name: userData.name,
           avatarUrl: userData.avatarUrl || null,
         },
@@ -78,8 +77,7 @@ export class UserService {
       return await prisma.user.update({
         where: { id },
         data: {
-          ...(userData.email !== undefined && userData.email !== null && { email: userData.email }),
-          ...(userData.name !== undefined && userData.name !== null && { name: userData.name }),
+          ...(userData.name !== undefined && { name: userData.name }),
           ...(userData.avatarUrl !== undefined && { avatarUrl: userData.avatarUrl }),
           ...(userData.passwordHash !== undefined && { passwordHash: userData.passwordHash }),
           ...(userData.googleId !== undefined && { googleId: userData.googleId }),

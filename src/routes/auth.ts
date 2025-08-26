@@ -3,27 +3,10 @@ import passport from '../config/passport';
 import authController from '../controllers/authController';
 import { authenticateToken, generateToken } from '../middleware/auth';
 import { validateRequest, sanitizeInput } from '../middleware/zodValidation';
-import { authLimiter } from '../middleware/rateLimiting';
-import { 
-  registerSchema, 
-  loginSchema, 
-  updateProfileSchema, 
-  changePasswordSchema 
-} from '../schemas';
+import { updateProfileSchema } from '../schemas';
 import type { User as PrismaUser } from '@prisma/client';
 
 const router = express.Router();
-
-
-// @route   POST /auth/register
-// @desc    Register new user
-// @access  Public
-router.post('/register', authLimiter, sanitizeInput, validateRequest(registerSchema), authController.register);
-
-// @route   POST /auth/login
-// @desc    Login user
-// @access  Public
-router.post('/login', authLimiter, sanitizeInput, validateRequest(loginSchema), authController.login);
 
 // @route   GET /auth/profile
 // @desc    Get current user profile
@@ -31,14 +14,9 @@ router.post('/login', authLimiter, sanitizeInput, validateRequest(loginSchema), 
 router.get('/profile', authenticateToken, authController.getProfile);
 
 // @route   PUT /auth/profile
-// @desc    Update user profile
+// @desc    Update user profile (name only)
 // @access  Private
 router.put('/profile', authenticateToken, sanitizeInput, validateRequest(updateProfileSchema), authController.updateProfile);
-
-// @route   POST /auth/change-password
-// @desc    Change user password
-// @access  Private
-router.post('/change-password', authenticateToken, sanitizeInput, validateRequest(changePasswordSchema), authController.changePassword);
 
 // @route   POST /auth/logout
 // @desc    Logout user (client-side token removal)

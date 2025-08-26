@@ -9,23 +9,16 @@
 | GET | `/` | API information and endpoint list | ❌ |
 | GET | `/docs` | Complete API documentation | ❌ |
 
-### Authentication
+### Authentication (Google OAuth Only)
 | Method | Endpoint | Description | Auth Required | Rate Limited |
 |--------|----------|-------------|---------------|-------------|
-| POST | `/auth/register` | Register new user account | ❌ | ✅ Auth (5/15min) |
-| POST | `/auth/login` | Login with email/password | ❌ | ✅ Auth (5/15min) |
+| GET | `/auth/google` | Initiate Google OAuth login | ❌ | ❌ |
+| GET | `/auth/google/callback` | Google OAuth callback handler | ❌ | ❌ |
 | GET | `/auth/profile` | Get current user profile | ✅ JWT | ❌ |
-| PUT | `/auth/profile` | Update user profile | ✅ JWT | ❌ |
-| POST | `/auth/change-password` | Change user password | ✅ JWT | ❌ |
+| PUT | `/auth/profile` | Update user profile (name only) | ✅ JWT | ❌ |
 | POST | `/auth/logout` | Logout (client-side) | ✅ JWT | ❌ |
 | GET | `/auth/me` | Get current user info | ✅ JWT | ❌ |
 | GET | `/auth/verify` | Verify JWT token validity | ✅ JWT | ❌ |
-
-### Google OAuth
-| Method | Endpoint | Description | Auth Required |
-|--------|----------|-------------|---------------|
-| GET | `/auth/google` | Initiate Google OAuth login | ❌ |
-| GET | `/auth/google/callback` | Google OAuth callback | ❌ |
 
 ### Document Management
 | Method | Endpoint | Description | Auth Required | Rate Limited |
@@ -83,13 +76,11 @@ RateLimit-Reset: 1234567890
 
 ## Validation Rules
 
-### Password Requirements
-- Minimum 8 characters
-- At least 1 uppercase letter
-- At least 1 lowercase letter  
-- At least 1 number
-- At least 1 special character
-- Not in common password list
+### Authentication Requirements
+- Google account required for login
+- No password storage (enhanced security)
+- JWT tokens for API authentication
+- Profile updates limited to name only
 
 ### File Upload Limits
 - Maximum file size: 50MB
@@ -97,8 +88,7 @@ RateLimit-Reset: 1234567890
 - File extensions: .pdf, .docx, .xlsx, .txt
 
 ### Input Validation
-- Email: Valid email format, max 255 chars
-- Name: 2-50 characters, letters and spaces only
+- Name: 2-50 characters, letters and spaces only (for profile updates)
 - Document title: 1-255 characters
 - Chat messages: 1-2000 characters
 - Search queries: 1-500 characters
@@ -121,12 +111,12 @@ RateLimit-Reset: 1234567890
 ## Security Features
 
 - **JWT Authentication**: Stateless token-based auth
-- **OAuth 2.0**: Google OAuth integration
-- **Rate Limiting**: Multiple tiers (General, Auth, Upload, AI, Search)
-- **Input Validation**: Comprehensive validation with express-validator
+- **Google OAuth 2.0**: Secure OAuth integration (only authentication method)
+- **Rate Limiting**: Multiple tiers (General, Upload, AI, Search)
+- **Input Validation**: Comprehensive validation with Zod
 - **Input Sanitization**: Automatic trimming and cleaning
 - **Security Headers**: Helmet.js for security headers
 - **CORS Protection**: Configured for specific origins
-- **Password Security**: Bcrypt hashing with salt rounds
+- **No Password Storage**: Enhanced security with OAuth-only authentication
 - **File Type Validation**: MIME type and extension checking
 - **Request Logging**: Morgan HTTP request logger
