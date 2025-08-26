@@ -14,7 +14,7 @@ export interface JWTPayload {
 export const authenticateToken = async (req: Request, res: Response, next: NextFunction): Promise<void> => {
   try {
     const authHeader = req.headers.authorization;
-    const token = authHeader && authHeader.split(' ')[1]; // Bearer TOKEN
+    const token = authHeader?.split(' ')[1] || req.query.token as string; // Bearer TOKEN or query param
 
     if (!token) {
       res.status(401).json({ 
@@ -36,16 +36,31 @@ export const authenticateToken = async (req: Request, res: Response, next: NextF
 
     // Verify token
     const decoded = jwt.verify(token, jwtSecret) as JWTPayload;
+    console.log(`🔍 JWT decoded - looking for user ID: ${decoded.userId}`);
     
     // Get user from database
-    const user = await userService.findById(decoded.userId);
+    let user;
+    try {
+      user = await userService.findById(decoded.userId);
+    } catch (dbError) {
+      console.error(`❌ Database error when looking for user ${decoded.userId}:`, dbError);
+      res.status(500).json({ 
+        error: 'Internal Server Error', 
+        message: 'Database connection error' 
+      });
+      return;
+    }
+    
     if (!user) {
+      console.error(`❌ User ${decoded.userId} not found during token validation`);
       res.status(401).json({ 
         error: 'Access denied', 
         message: 'Invalid token - user not found' 
       });
       return;
     }
+    
+    console.log(`✅ Authentication successful for user: ${user.email}`);
 
     // Attach user to request
     req.user = user;
@@ -71,7 +86,7 @@ export const authenticateToken = async (req: Request, res: Response, next: NextF
 export const optionalAuth = async (req: Request, _res: Response, next: NextFunction): Promise<void> => {
   try {
     const authHeader = req.headers.authorization;
-    const token = authHeader && authHeader.split(' ')[1];
+    const token = authHeader?.split(' ')[1] || req.query.token as string;
 
     if (!token) {
       next();
@@ -138,7 +153,11 @@ export const generateToken = (user: PrismaUser): string => {
     email: user.email
   };
 
-  return jwt.sign(payload, jwtSecret, { expiresIn: jwtExpiresIn } as jwt.SignOptions);
+  console.log(`🔑 Generating JWT for user: ${user.email} (ID: ${user.id})`);
+  const token = jwt.sign(payload, jwtSecret, { expiresIn: jwtExpiresIn } as jwt.SignOptions);
+  console.log(`✅ JWT generated successfully`);
+  
+  return token;
 };
 
 // Verify JWT token (utility function)

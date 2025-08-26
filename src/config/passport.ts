@@ -34,6 +34,12 @@ if (process.env.GOOGLE_CLIENT_ID && process.env.GOOGLE_CLIENT_SECRET) {
           }
 
           // Create new user
+          console.log('👤 Creating new user from Google OAuth:', {
+            email: profile.emails?.[0]?.value,
+            googleId: profile.id,
+            name: profile.displayName,
+          });
+          
           const newUser = await userService.create({
             email: profile.emails?.[0]?.value || '',
             googleId: profile.id,
@@ -41,6 +47,7 @@ if (process.env.GOOGLE_CLIENT_ID && process.env.GOOGLE_CLIENT_SECRET) {
             avatarUrl: profile.photos?.[0]?.value || null
           });
 
+          console.log('✅ User created successfully:', { id: newUser.id, email: newUser.email });
           return done(null, newUser);
         } catch (error) {
           console.error('Google OAuth error:', error);

@@ -43,17 +43,30 @@ router.get('/google/callback',
   }),
   (req, res) => {
     try {
+      console.log('📝 OAuth callback received');
       const user = req.user as any;
+      console.log('👤 User from OAuth:', user ? `${user.email} (ID: ${user.id})` : 'No user');
+      
       if (!user) {
+        console.error('❌ No user found in OAuth callback');
         return res.redirect(`${process.env.FRONTEND_URL}/login?error=oauth_failed`);
       }
 
       // Generate JWT token
+      console.log('🔑 Generating token for OAuth user...');
       const token = generateToken(user);
       
-      // Redirect to frontend with token
+      // Prepare user data without sensitive info
+      const { passwordHash, ...safeUserData } = user as any;
+      console.log('📦 Prepared safe user data:', { id: safeUserData.id, email: safeUserData.email });
+      
+      // Redirect to frontend with token and user data
       const frontendUrl = process.env.FRONTEND_URL || 'http://localhost:3000';
-      res.redirect(`${frontendUrl}/auth/callback?token=${token}`);
+      const encodedUserData = encodeURIComponent(JSON.stringify(safeUserData));
+      const redirectUrl = `${frontendUrl}/auth/callback?token=${token}&user=${encodedUserData}`;
+      console.log('🚀 Redirecting to:', redirectUrl.substring(0, 100) + '...');
+      
+      res.redirect(redirectUrl);
     } catch (error) {
       console.error('Google OAuth callback error:', error);
       res.redirect(`${process.env.FRONTEND_URL}/login?error=oauth_callback_failed`);

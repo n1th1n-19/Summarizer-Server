@@ -6,9 +6,9 @@ declare global {
   var prisma: PrismaClient | undefined;
 }
 
-// Prevent multiple instances of Prisma Client in development
+// Create Prisma client with connection pooling disabled to avoid prepared statement conflicts
 const prisma = globalThis.prisma ?? new PrismaClient({
-  log: process.env.NODE_ENV === 'development' ? ['query', 'error', 'warn'] : ['error'],
+  log: process.env.NODE_ENV === 'development' ? ['error', 'warn'] : ['error'],
 });
 
 if (process.env.NODE_ENV !== 'production') {

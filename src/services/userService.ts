@@ -19,7 +19,13 @@ export interface UpdateUserData {
 export class UserService {
   async create(userData: CreateUserData): Promise<User> {
     try {
-      return await prisma.user.create({
+      console.log('💾 Creating user in database:', { 
+        email: userData.email, 
+        googleId: userData.googleId,
+        name: userData.name 
+      });
+      
+      const user = await prisma.user.create({
         data: {
           email: userData.email,
           passwordHash: userData.passwordHash || null,
@@ -28,22 +34,35 @@ export class UserService {
           avatarUrl: userData.avatarUrl || null,
         },
       });
+      
+      console.log('✅ User created in database with ID:', user.id);
+      return user;
     } catch (error) {
       if (error instanceof Prisma.PrismaClientKnownRequestError) {
         if (error.code === 'P2002') {
+          console.error('❌ User already exists:', userData.email);
           throw new Error('A user with this email or Google ID already exists');
         }
       }
-      console.error('Error creating user:', error);
+      console.error('❌ Error creating user:', error);
       throw new Error('Failed to create user');
     }
   }
 
   async findById(id: number): Promise<User | null> {
     try {
-      return await prisma.user.findUnique({
+      console.log(`🔍 Looking for user with ID: ${id}`);
+      const user = await prisma.user.findUnique({
         where: { id },
       });
+      
+      if (!user) {
+        console.log(`❌ User with ID ${id} not found in database`);
+        return null;
+      }
+      
+      console.log(`✅ Found user: ${user.email} (ID: ${user.id})`);
+      return user;
     } catch (error) {
       console.error('Error finding user by ID:', error);
       throw new Error('Failed to find user');
