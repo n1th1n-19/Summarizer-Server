@@ -2,12 +2,13 @@ import { Request, Response } from 'express';
 import documentService from '../services/documentService';
 import fileService from '../services/fileService';
 import aiService from '../services/aiService';
-import type { User as PrismaUser } from '@prisma/client';
+import { User } from '../types/user';
+import { DocumentStatus } from '../types/document';
 
 export class DocumentController {
   async upload(req: Request, res: Response): Promise<void> {
     try {
-      const user = req.user as PrismaUser;
+      const user = req.user as User;
       if (!user) {
         res.status(401).json({ error: 'Authentication required' });
         return;
@@ -46,11 +47,11 @@ export class DocumentController {
         const summary = await aiService.summarizeText(extractedText);
         await documentService.update(document.id, { 
           summary, 
-          status: 'COMPLETED' 
+          status: DocumentStatus.COMPLETED 
         });
       } catch (summaryError) {
         console.error('Summary generation failed:', summaryError);
-        await documentService.update(document.id, { status: 'FAILED' });
+        await documentService.update(document.id, { status: DocumentStatus.FAILED });
       }
 
       res.status(201).json({
@@ -76,7 +77,7 @@ export class DocumentController {
 
   async getDocuments(req: Request, res: Response): Promise<void> {
     try {
-      const user = req.user as PrismaUser;
+      const user = req.user as User;
       if (!user) {
         res.status(401).json({ error: 'Authentication required' });
         return;
@@ -106,7 +107,7 @@ export class DocumentController {
 
   async getDocument(req: Request, res: Response): Promise<void> {
     try {
-      const user = req.user as PrismaUser;
+      const user = req.user as User;
       if (!user) {
         res.status(401).json({ error: 'Authentication required' });
         return;
@@ -136,7 +137,7 @@ export class DocumentController {
 
   async deleteDocument(req: Request, res: Response): Promise<void> {
     try {
-      const user = req.user as PrismaUser;
+      const user = req.user as User;
       if (!user) {
         res.status(401).json({ error: 'Authentication required' });
         return;
@@ -170,7 +171,7 @@ export class DocumentController {
 
   async summarize(req: Request, res: Response): Promise<void> {
     try {
-      const user = req.user as PrismaUser;
+      const user = req.user as User;
       if (!user) {
         res.status(401).json({ error: 'Authentication required' });
         return;
@@ -199,7 +200,7 @@ export class DocumentController {
       // Update document with new summary
       await documentService.update(documentId, { 
         summary, 
-        status: 'COMPLETED' 
+        status: DocumentStatus.COMPLETED 
       });
 
       res.json({
@@ -217,7 +218,7 @@ export class DocumentController {
 
   async generateEmbeddings(req: Request, res: Response): Promise<void> {
     try {
-      const user = req.user as PrismaUser;
+      const user = req.user as User;
       if (!user) {
         res.status(401).json({ error: 'Authentication required' });
         return;
@@ -258,7 +259,7 @@ export class DocumentController {
   async searchSimilar(req: Request, res: Response): Promise<void> {
     try {
 
-      const user = req.user as PrismaUser;
+      const user = req.user as User;
       if (!user) {
         res.status(401).json({ error: 'Authentication required' });
         return;

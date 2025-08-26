@@ -1,13 +1,13 @@
 import { Request, Response } from 'express';
 import chatService from '../services/chatService';
 import documentService from '../services/documentService';
-import type { User as PrismaUser } from '@prisma/client';
+import { User } from '../types/user';
 
 export class ChatController {
   async createSession(req: Request, res: Response): Promise<void> {
     try {
 
-      const userId = (req.user as PrismaUser)!.id;
+      const userId = (req.user as User)!.id;
       const { documentId, title } = req.body;
 
       const document = await documentService.findByUserIdAndDocumentId(userId, documentId);
@@ -26,7 +26,7 @@ export class ChatController {
 
   async getSessions(req: Request, res: Response): Promise<void> {
     try {
-      const userId = (req.user as PrismaUser)!.id;
+      const userId = (req.user as User)!.id;
       const { page = 1, limit = 10, documentId } = req.query;
 
       const sessions = await chatService.getUserSessions(userId, {
@@ -45,7 +45,7 @@ export class ChatController {
   async getSession(req: Request, res: Response): Promise<void> {
     try {
 
-      const userId = (req.user as PrismaUser)!.id;
+      const userId = (req.user as User)!.id;
       const sessionId = Number(req.params.id);
 
       const session = await chatService.getSessionWithMessages(sessionId, userId);
@@ -64,7 +64,7 @@ export class ChatController {
   async deleteSession(req: Request, res: Response): Promise<void> {
     try {
 
-      const userId = (req.user as PrismaUser)!.id;
+      const userId = (req.user as User)!.id;
       const sessionId = Number(req.params.id);
 
       await chatService.deleteSession(sessionId, userId);
@@ -82,7 +82,7 @@ export class ChatController {
   async sendMessage(req: Request, res: Response): Promise<void> {
     try {
 
-      const userId = (req.user as PrismaUser)!.id;
+      const userId = (req.user as User)!.id;
       const sessionId = Number(req.params.id);
       const { content } = req.body;
 
@@ -107,7 +107,7 @@ export class ChatController {
   async quickQuery(req: Request, res: Response): Promise<void> {
     try {
 
-      const userId = (req.user as PrismaUser)!.id;
+      const userId = (req.user as User)!.id;
       const { documentId, message } = req.body;
 
       const document = await documentService.findByUserIdAndDocumentId(userId, documentId);

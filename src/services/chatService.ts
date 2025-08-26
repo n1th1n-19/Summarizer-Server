@@ -1,5 +1,5 @@
-import { ChatSession, ChatMessage } from '@prisma/client';
-import prisma from '../config/prisma';
+import { ChatSession, ChatMessage } from '../types/document';
+import { query } from '../config/database';
 import aiService from './aiService';
 
 export interface CreateSessionData {
@@ -32,13 +32,25 @@ export interface PaginatedSessions {
 export class ChatService {
   async createSession(userId: number, documentId: number, title?: string): Promise<ChatSession> {
     try {
-      return await prisma.chatSession.create({
-        data: {
-          userId,
-          documentId,
-          sessionName: title || `Chat ${new Date().toLocaleDateString()}`
-        }
-      });
+      const result = await query(`
+        INSERT INTO chat_sessions (user_id, document_id, session_name, created_at, updated_at)
+        VALUES ($1, $2, $3, NOW(), NOW())
+        RETURNING id, user_id, document_id, session_name, created_at, updated_at
+      `, [userId, documentId, title || `Chat ${new Date().toLocaleDateString()}`]);
+
+      if (result.rows.length === 0) {
+        throw new Error('Failed to create chat session');
+      }
+
+      const row = result.rows[0];
+      return {
+        id: row.id,
+        userId: row.user_id,
+        documentId: row.document_id,
+        sessionName: row.session_name,
+        createdAt: row.created_at,
+        updatedAt: row.updated_at,
+      };
     } catch (error) {
       console.error('Error creating chat session:', error);
       throw new Error('Failed to create chat session');
@@ -47,12 +59,25 @@ export class ChatService {
 
   async getSession(sessionId: number, userId: number): Promise<ChatSession | null> {
     try {
-      return await prisma.chatSession.findFirst({
-        where: {
-          id: sessionId,
-          userId
-        }
-      });
+      const result = await query(`
+        SELECT id, user_id, document_id, session_name, created_at, updated_at
+        FROM chat_sessions
+        WHERE id = $1 AND user_id = $2
+      `, [sessionId, userId]);
+
+      if (result.rows.length === 0) {
+        return null;
+      }
+
+      const row = result.rows[0];
+      return {
+        id: row.id,
+        userId: row.user_id,
+        documentId: row.document_id,
+        sessionName: row.session_name,
+        createdAt: row.created_at,
+        updatedAt: row.updated_at,
+      };
     } catch (error) {
       console.error('Error getting chat session:', error);
       throw new Error('Failed to get chat session');
@@ -61,24 +86,47 @@ export class ChatService {
 
   async getSessionWithMessages(sessionId: number, userId: number): Promise<any> {
     try {
-      return await prisma.chatSession.findFirst({
-        where: {
-          id: sessionId,
-          userId
-        },
-        include: {
-          document: {
-            select: {
-              id: true,
-              title: true,
-              fileName: true
-            }
-          },
-          messages: {
-            orderBy: { createdAt: 'asc' }
-          }
-        }
-      });
+      const sessionResult = await query(`
+        SELECT cs.id, cs.user_id, cs.document_id, cs.session_name, cs.created_at, cs.updated_at,
+               d.id as doc_id, d.title as doc_title, d.file_name as doc_filename
+        FROM chat_sessions cs
+        LEFT JOIN documents d ON cs.document_id = d.id
+        WHERE cs.id = $1 AND cs.user_id = $2
+      `, [sessionId, userId]);
+
+      if (sessionResult.rows.length === 0) {
+        return null;
+      }
+
+      const messagesResult = await query(`
+        SELECT id, session_id, message, response, created_at, updated_at
+        FROM chat_messages
+        WHERE session_id = $1
+        ORDER BY created_at ASC
+      `, [sessionId]);
+
+      const sessionRow = sessionResult.rows[0];
+      return {
+        id: sessionRow.id,
+        userId: sessionRow.user_id,
+        documentId: sessionRow.document_id,
+        sessionName: sessionRow.session_name,
+        createdAt: sessionRow.created_at,
+        updatedAt: sessionRow.updated_at,
+        document: sessionRow.doc_id ? {
+          id: sessionRow.doc_id,
+          title: sessionRow.doc_title,
+          fileName: sessionRow.doc_filename
+        } : null,
+        messages: messagesResult.rows.map(row => ({
+          id: row.id,
+          sessionId: row.session_id,
+          message: row.message,
+          response: row.response,
+          createdAt: row.created_at,
+          updatedAt: row.updated_at,
+        }))
+      };
     } catch (error) {
       console.error('Error getting chat session with messages:', error);
       throw new Error('Failed to get chat session');
@@ -90,37 +138,50 @@ export class ChatService {
     const offset = (page - 1) * limit;
 
     try {
-      const whereClause: any = { userId };
+      let whereCondition = 'cs.user_id = $1';
+      const params: any[] = [userId];
+      let paramIndex = 2;
+
       if (documentId) {
-        whereClause.documentId = documentId;
+        whereCondition += ` AND cs.document_id = $${paramIndex}`;
+        params.push(documentId);
+        paramIndex++;
       }
 
-      const [sessions, total] = await Promise.all([
-        prisma.chatSession.findMany({
-          where: whereClause,
-          orderBy: { updatedAt: 'desc' },
-          take: limit,
-          skip: offset,
-          include: {
-            document: {
-              select: {
-                id: true,
-                title: true,
-                fileName: true
-              }
-            },
-            _count: {
-              select: {
-                messages: true
-              }
-            }
-          }
-        }),
-        prisma.chatSession.count({
-          where: whereClause
-        })
+      const [sessionsResult, totalResult] = await Promise.all([
+        query(`
+          SELECT cs.id, cs.user_id, cs.document_id, cs.session_name, cs.created_at, cs.updated_at,
+                 d.id as doc_id, d.title as doc_title, d.file_name as doc_filename,
+                 COUNT(cm.id) as message_count
+          FROM chat_sessions cs
+          LEFT JOIN documents d ON cs.document_id = d.id
+          LEFT JOIN chat_messages cm ON cs.id = cm.session_id
+          WHERE ${whereCondition}
+          GROUP BY cs.id, d.id, d.title, d.file_name
+          ORDER BY cs.updated_at DESC
+          LIMIT $${paramIndex} OFFSET $${paramIndex + 1}
+        `, [...params, limit, offset]),
+        query(`SELECT COUNT(*) as count FROM chat_sessions cs WHERE ${whereCondition}`, params)
       ]);
 
+      const sessions = sessionsResult.rows.map(row => ({
+        id: row.id,
+        userId: row.user_id,
+        documentId: row.document_id,
+        sessionName: row.session_name,
+        createdAt: row.created_at,
+        updatedAt: row.updated_at,
+        document: {
+          id: row.doc_id,
+          title: row.doc_title,
+          fileName: row.doc_filename
+        },
+        _count: {
+          messages: parseInt(row.message_count) || 0
+        }
+      }));
+
+      const total = parseInt(totalResult.rows[0].count);
       const totalPages = Math.ceil(total / limit);
 
       return {
@@ -147,9 +208,11 @@ export class ChatService {
         throw new Error('Chat session not found');
       }
 
-      await prisma.chatSession.delete({
-        where: { id: sessionId }
-      });
+      // Delete messages first due to foreign key constraint
+      await query('DELETE FROM chat_messages WHERE session_id = $1', [sessionId]);
+      
+      // Then delete the session
+      await query('DELETE FROM chat_sessions WHERE id = $1', [sessionId]);
     } catch (error) {
       if (error instanceof Error && error.message === 'Chat session not found') {
         throw error;
@@ -164,40 +227,45 @@ export class ChatService {
     aiResponse: ChatMessage
   }> {
     try {
-      const session = await prisma.chatSession.findUnique({
-        where: { id: sessionId },
-        include: {
-          document: true,
-          messages: {
-            orderBy: { createdAt: 'desc' },
-            take: 10
-          }
-        }
-      });
+      const sessionResult = await query(`
+        SELECT cs.id, cs.user_id, cs.document_id, cs.session_name,
+               d.extracted_text
+        FROM chat_sessions cs
+        LEFT JOIN documents d ON cs.document_id = d.id
+        WHERE cs.id = $1
+      `, [sessionId]);
 
-      if (!session) {
+      if (sessionResult.rows.length === 0) {
         throw new Error('Chat session not found');
       }
 
+      const session = sessionResult.rows[0];
       const aiResponseContent = await aiService.chatWithDocument(
-        session.document.extractedText || '',
+        session.extracted_text || '',
         content
       );
 
-      const chatMessage = await prisma.chatMessage.create({
-        data: {
-          sessionId,
-          message: content,
-          response: aiResponseContent
-        }
-      });
+      const messageResult = await query(`
+        INSERT INTO chat_messages (session_id, message, response, created_at, updated_at)
+        VALUES ($1, $2, $3, NOW(), NOW())
+        RETURNING id, session_id, message, response, created_at, updated_at
+      `, [sessionId, content, aiResponseContent]);
 
-      await prisma.chatSession.update({
-        where: { id: sessionId },
-        data: { updatedAt: new Date() }
-      });
+      await query(`
+        UPDATE chat_sessions 
+        SET updated_at = NOW() 
+        WHERE id = $1
+      `, [sessionId]);
 
-      // Return the same message for both user and AI for compatibility
+      const chatMessage: ChatMessage = {
+        id: messageResult.rows[0].id,
+        sessionId: messageResult.rows[0].session_id,
+        message: messageResult.rows[0].message,
+        response: messageResult.rows[0].response,
+        createdAt: messageResult.rows[0].created_at,
+        updatedAt: messageResult.rows[0].updated_at,
+      };
+
       return { 
         userMessage: chatMessage, 
         aiResponse: chatMessage 
@@ -223,16 +291,23 @@ export class ChatService {
     averageMessagesPerSession: number;
   }> {
     try {
-      const whereClause = userId ? { userId } : {};
+      let sessionWhereCondition = '';
+      let messageWhereCondition = '';
+      const params: any[] = [];
 
-      const [sessionCount, messageCount] = await Promise.all([
-        prisma.chatSession.count({ where: whereClause }),
-        prisma.chatMessage.count({
-          where: {
-            session: whereClause
-          }
-        })
+      if (userId) {
+        sessionWhereCondition = 'WHERE user_id = $1';
+        messageWhereCondition = 'WHERE cm.session_id IN (SELECT id FROM chat_sessions WHERE user_id = $1)';
+        params.push(userId);
+      }
+
+      const [sessionCountResult, messageCountResult] = await Promise.all([
+        query(`SELECT COUNT(*) as count FROM chat_sessions ${sessionWhereCondition}`, params),
+        query(`SELECT COUNT(*) as count FROM chat_messages cm ${messageWhereCondition}`, params)
       ]);
+
+      const sessionCount = parseInt(sessionCountResult.rows[0].count);
+      const messageCount = parseInt(messageCountResult.rows[0].count);
 
       return {
         total: sessionCount,

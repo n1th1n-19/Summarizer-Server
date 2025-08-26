@@ -1,13 +1,13 @@
 import { Request, Response } from 'express';
 import userService from '../services/userService';
-import type { User as PrismaUser } from '@prisma/client';
+import { User } from '../types/user';
 
 export class AuthController {
 
   // Get current user profile
   async getProfile(req: Request, res: Response): Promise<void> {
     try {
-      const user = req.user as PrismaUser;
+      const user = req.user as User;
       if (!user) {
         res.status(401).json({
           error: 'Unauthorized',
@@ -41,7 +41,7 @@ export class AuthController {
   // Update user profile (name only, email managed by Google)
   async updateProfile(req: Request, res: Response): Promise<void> {
     try {
-      const user = req.user as PrismaUser;
+      const user = req.user as User;
       if (!user) {
         res.status(401).json({
           error: 'Unauthorized',

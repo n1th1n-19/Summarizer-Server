@@ -1,23 +1,7 @@
-import { Document, DocumentStatus, Prisma } from '@prisma/client';
-import prisma from '../config/prisma';
+import { Document, DocumentStatus, CreateDocumentData, UpdateDocumentData } from '../types/document';
+import { query } from '../config/database';
 import aiService from './aiService';
 
-export interface CreateDocumentData {
-  userId: number;
-  title: string;
-  fileName: string;
-  fileType: string;
-  fileSize: number;
-  fileUrl?: string | null;
-  extractedText?: string | null;
-}
-
-export interface UpdateDocumentData {
-  title?: string | null;
-  extractedText?: string | null;
-  summary?: string | null;
-  status?: DocumentStatus | null;
-}
 
 export interface PaginationOptions {
   page?: number;
@@ -41,17 +25,40 @@ export interface PaginatedResult<T> {
 export class DocumentService {
   async create(documentData: CreateDocumentData): Promise<Document> {
     try {
-      return await prisma.document.create({
-        data: {
-          userId: documentData.userId,
-          title: documentData.title,
-          fileName: documentData.fileName,
-          fileType: documentData.fileType,
-          fileSize: documentData.fileSize,
-          fileUrl: documentData.fileUrl || null,
-          extractedText: documentData.extractedText || null,
-        },
-      });
+      const result = await query(`
+        INSERT INTO documents (user_id, title, file_name, file_type, file_size, file_url, extracted_text, status, created_at, updated_at)
+        VALUES ($1, $2, $3, $4, $5, $6, $7, $8, NOW(), NOW())
+        RETURNING id, user_id, title, file_name, file_type, file_size, file_url, extracted_text, summary, status, created_at, updated_at
+      `, [
+        documentData.userId,
+        documentData.title,
+        documentData.fileName,
+        documentData.fileType,
+        documentData.fileSize,
+        documentData.fileUrl || null,
+        documentData.extractedText || null,
+        DocumentStatus.PENDING
+      ]);
+      
+      if (result.rows.length === 0) {
+        throw new Error('Failed to create document');
+      }
+
+      const row = result.rows[0];
+      return {
+        id: row.id,
+        userId: row.user_id,
+        title: row.title,
+        fileName: row.file_name,
+        fileType: row.file_type,
+        fileSize: row.file_size,
+        fileUrl: row.file_url,
+        extractedText: row.extracted_text,
+        summary: row.summary,
+        status: row.status,
+        createdAt: row.created_at,
+        updatedAt: row.updated_at,
+      };
     } catch (error) {
       console.error('Error creating document:', error);
       throw new Error('Failed to create document');
@@ -60,18 +67,32 @@ export class DocumentService {
 
   async findById(id: number): Promise<Document | null> {
     try {
-      return await prisma.document.findUnique({
-        where: { id },
-        include: {
-          user: {
-            select: {
-              id: true,
-              name: true,
-              email: true,
-            },
-          },
-        },
-      });
+      const result = await query(`
+        SELECT d.id, d.user_id, d.title, d.file_name, d.file_type, d.file_size, d.file_url, 
+               d.extracted_text, d.summary, d.status, d.created_at, d.updated_at
+        FROM documents d
+        WHERE d.id = $1
+      `, [id]);
+
+      if (result.rows.length === 0) {
+        return null;
+      }
+
+      const row = result.rows[0];
+      return {
+        id: row.id,
+        userId: row.user_id,
+        title: row.title,
+        fileName: row.file_name,
+        fileType: row.file_type,
+        fileSize: row.file_size,
+        fileUrl: row.file_url,
+        extractedText: row.extracted_text,
+        summary: row.summary,
+        status: row.status,
+        createdAt: row.created_at,
+        updatedAt: row.updated_at,
+      };
     } catch (error) {
       console.error('Error finding document by ID:', error);
       throw new Error('Failed to find document');
@@ -79,38 +100,46 @@ export class DocumentService {
   }
 
   async findByUserId(userId: number, options: PaginationOptions = {}): Promise<PaginatedResult<Document>> {
-    const { page = 1, limit = 10, sortBy = 'createdAt', sortOrder = 'desc' } = options;
+    const { page = 1, limit = 10, sortBy = 'created_at', sortOrder = 'desc' } = options;
     const offset = (page - 1) * limit;
 
     try {
       const [documents, total] = await Promise.all([
-        prisma.document.findMany({
-          where: { userId },
-          orderBy: { [sortBy]: sortOrder },
-          take: limit,
-          skip: offset,
-          include: {
-            _count: {
-              select: {
-                embeddings: true,
-                chatSessions: true,
-              },
-            },
-          },
-        }),
-        prisma.document.count({
-          where: { userId },
-        }),
+        query(`
+          SELECT id, user_id, title, file_name, file_type, file_size, file_url, 
+                 extracted_text, summary, status, created_at, updated_at
+          FROM documents 
+          WHERE user_id = $1
+          ORDER BY ${sortBy} ${sortOrder}
+          LIMIT $2 OFFSET $3
+        `, [userId, limit, offset]),
+        query('SELECT COUNT(*) as count FROM documents WHERE user_id = $1', [userId])
       ]);
 
-      const totalPages = Math.ceil(total / limit);
+      const documentsData = documents.rows.map(row => ({
+        id: row.id,
+        userId: row.user_id,
+        title: row.title,
+        fileName: row.file_name,
+        fileType: row.file_type,
+        fileSize: row.file_size,
+        fileUrl: row.file_url,
+        extractedText: row.extracted_text,
+        summary: row.summary,
+        status: row.status,
+        createdAt: row.created_at,
+        updatedAt: row.updated_at,
+      }));
+
+      const totalCount = parseInt(total.rows[0].count);
+      const totalPages = Math.ceil(totalCount / limit);
 
       return {
-        data: documents,
+        data: documentsData,
         pagination: {
           page,
           limit,
-          total,
+          total: totalCount,
           totalPages,
           hasNext: page < totalPages,
           hasPrev: page > 1,
@@ -124,12 +153,32 @@ export class DocumentService {
 
   async findByUserIdAndDocumentId(userId: number, documentId: number): Promise<Document | null> {
     try {
-      return await prisma.document.findFirst({
-        where: {
-          id: documentId,
-          userId: userId,
-        },
-      });
+      const result = await query(`
+        SELECT id, user_id, title, file_name, file_type, file_size, file_url, 
+               extracted_text, summary, status, created_at, updated_at
+        FROM documents 
+        WHERE id = $1 AND user_id = $2
+      `, [documentId, userId]);
+
+      if (result.rows.length === 0) {
+        return null;
+      }
+
+      const row = result.rows[0];
+      return {
+        id: row.id,
+        userId: row.user_id,
+        title: row.title,
+        fileName: row.file_name,
+        fileType: row.file_type,
+        fileSize: row.file_size,
+        fileUrl: row.file_url,
+        extractedText: row.extracted_text,
+        summary: row.summary,
+        status: row.status,
+        createdAt: row.created_at,
+        updatedAt: row.updated_at,
+      };
     } catch (error) {
       console.error('Error finding document by user and document ID:', error);
       throw new Error('Failed to find document');
@@ -138,21 +187,61 @@ export class DocumentService {
 
   async update(id: number, documentData: UpdateDocumentData): Promise<Document> {
     try {
-      return await prisma.document.update({
-        where: { id },
-        data: {
-          ...(documentData.title !== undefined && documentData.title !== null && { title: documentData.title }),
-          ...(documentData.extractedText !== undefined && documentData.extractedText !== null && { extractedText: documentData.extractedText }),
-          ...(documentData.summary !== undefined && documentData.summary !== null && { summary: documentData.summary }),
-          ...(documentData.status !== undefined && documentData.status !== null && { status: documentData.status }),
-        },
-      });
-    } catch (error) {
-      if (error instanceof Prisma.PrismaClientKnownRequestError) {
-        if (error.code === 'P2025') {
-          throw new Error('Document not found');
-        }
+      const setParts: string[] = [];
+      const values: any[] = [];
+      let paramIndex = 1;
+
+      if (documentData.title !== undefined && documentData.title !== null) {
+        setParts.push(`title = $${paramIndex++}`);
+        values.push(documentData.title);
       }
+      if (documentData.extractedText !== undefined && documentData.extractedText !== null) {
+        setParts.push(`extracted_text = $${paramIndex++}`);
+        values.push(documentData.extractedText);
+      }
+      if (documentData.summary !== undefined && documentData.summary !== null) {
+        setParts.push(`summary = $${paramIndex++}`);
+        values.push(documentData.summary);
+      }
+      if (documentData.status !== undefined && documentData.status !== null) {
+        setParts.push(`status = $${paramIndex++}`);
+        values.push(documentData.status);
+      }
+
+      if (setParts.length === 0) {
+        throw new Error('No fields to update');
+      }
+
+      setParts.push(`updated_at = NOW()`);
+      values.push(id);
+
+      const result = await query(`
+        UPDATE documents 
+        SET ${setParts.join(', ')}
+        WHERE id = $${paramIndex}
+        RETURNING id, user_id, title, file_name, file_type, file_size, file_url, extracted_text, summary, status, created_at, updated_at
+      `, values);
+
+      if (result.rows.length === 0) {
+        throw new Error('Document not found');
+      }
+
+      const row = result.rows[0];
+      return {
+        id: row.id,
+        userId: row.user_id,
+        title: row.title,
+        fileName: row.file_name,
+        fileType: row.file_type,
+        fileSize: row.file_size,
+        fileUrl: row.file_url,
+        extractedText: row.extracted_text,
+        summary: row.summary,
+        status: row.status,
+        createdAt: row.created_at,
+        updatedAt: row.updated_at,
+      };
+    } catch (error: any) {
       console.error('Error updating document:', error);
       throw new Error('Failed to update document');
     }
@@ -160,15 +249,32 @@ export class DocumentService {
 
   async delete(id: number): Promise<Document> {
     try {
-      return await prisma.document.delete({
-        where: { id },
-      });
-    } catch (error) {
-      if (error instanceof Prisma.PrismaClientKnownRequestError) {
-        if (error.code === 'P2025') {
-          throw new Error('Document not found');
-        }
+      const result = await query(`
+        DELETE FROM documents 
+        WHERE id = $1
+        RETURNING id, user_id, title, file_name, file_type, file_size, file_url, extracted_text, summary, status, created_at, updated_at
+      `, [id]);
+
+      if (result.rows.length === 0) {
+        throw new Error('Document not found');
       }
+
+      const row = result.rows[0];
+      return {
+        id: row.id,
+        userId: row.user_id,
+        title: row.title,
+        fileName: row.file_name,
+        fileType: row.file_type,
+        fileSize: row.file_size,
+        fileUrl: row.file_url,
+        extractedText: row.extracted_text,
+        summary: row.summary,
+        status: row.status,
+        createdAt: row.created_at,
+        updatedAt: row.updated_at,
+      };
+    } catch (error) {
       console.error('Error deleting document:', error);
       throw new Error('Failed to delete document');
     }
@@ -179,70 +285,49 @@ export class DocumentService {
     const offset = (page - 1) * limit;
 
     try {
+      const searchPattern = `%${searchTerm.toLowerCase()}%`;
       const [documents, total] = await Promise.all([
-        prisma.document.findMany({
-          where: {
-            userId,
-            OR: [
-              {
-                title: {
-                  contains: searchTerm,
-                  mode: 'insensitive',
-                },
-              },
-              {
-                fileName: {
-                  contains: searchTerm,
-                  mode: 'insensitive',
-                },
-              },
-              {
-                extractedText: {
-                  contains: searchTerm,
-                  mode: 'insensitive',
-                },
-              },
-            ],
-          },
-          orderBy: { createdAt: 'desc' },
-          take: limit,
-          skip: offset,
-        }),
-        prisma.document.count({
-          where: {
-            userId,
-            OR: [
-              {
-                title: {
-                  contains: searchTerm,
-                  mode: 'insensitive',
-                },
-              },
-              {
-                fileName: {
-                  contains: searchTerm,
-                  mode: 'insensitive',
-                },
-              },
-              {
-                extractedText: {
-                  contains: searchTerm,
-                  mode: 'insensitive',
-                },
-              },
-            ],
-          },
-        }),
+        query(`
+          SELECT id, user_id, title, file_name, file_type, file_size, file_url, 
+                 extracted_text, summary, status, created_at, updated_at
+          FROM documents
+          WHERE user_id = $1 
+            AND (LOWER(title) LIKE $2 OR LOWER(file_name) LIKE $2 OR LOWER(extracted_text) LIKE $2)
+          ORDER BY created_at DESC
+          LIMIT $3 OFFSET $4
+        `, [userId, searchPattern, limit, offset]),
+        query(`
+          SELECT COUNT(*) as count
+          FROM documents
+          WHERE user_id = $1 
+            AND (LOWER(title) LIKE $2 OR LOWER(file_name) LIKE $2 OR LOWER(extracted_text) LIKE $2)
+        `, [userId, searchPattern])
       ]);
 
-      const totalPages = Math.ceil(total / limit);
+      const documentsData = documents.rows.map(row => ({
+        id: row.id,
+        userId: row.user_id,
+        title: row.title,
+        fileName: row.file_name,
+        fileType: row.file_type,
+        fileSize: row.file_size,
+        fileUrl: row.file_url,
+        extractedText: row.extracted_text,
+        summary: row.summary,
+        status: row.status,
+        createdAt: row.created_at,
+        updatedAt: row.updated_at,
+      }));
+
+      const totalCount = parseInt(total.rows[0].count);
+      const totalPages = Math.ceil(totalCount / limit);
 
       return {
-        data: documents,
+        data: documentsData,
         pagination: {
           page,
           limit,
-          total,
+          total: totalCount,
           totalPages,
           hasNext: page < totalPages,
           hasPrev: page > 1,
@@ -260,32 +345,24 @@ export class DocumentService {
     totalSize: number; 
   }> {
     try {
-      const whereClause = userId ? { userId } : {};
+      const whereCondition = userId ? 'WHERE user_id = $1' : '';
+      const params = userId ? [userId] : [];
 
       const [totalResult, statusCounts, totalSizeResult] = await Promise.all([
-        prisma.document.count({ where: whereClause }),
-        prisma.document.groupBy({
-          by: ['status'],
-          where: whereClause,
-          _count: true,
-        }),
-        prisma.document.aggregate({
-          where: whereClause,
-          _sum: {
-            fileSize: true,
-          },
-        }),
+        query(`SELECT COUNT(*) as count FROM documents ${whereCondition}`, params),
+        query(`SELECT status, COUNT(*) as count FROM documents ${whereCondition} GROUP BY status`, params),
+        query(`SELECT SUM(file_size) as total_size FROM documents ${whereCondition}`, params)
       ]);
 
       const byStatus: Record<string, number> = {};
-      statusCounts.forEach(({ status, _count }) => {
-        byStatus[status] = _count;
+      statusCounts.rows.forEach((row: any) => {
+        byStatus[row.status] = parseInt(row.count);
       });
 
       return {
-        total: totalResult,
+        total: parseInt(totalResult.rows[0].count),
         byStatus,
-        totalSize: totalSizeResult._sum.fileSize || 0,
+        totalSize: parseInt(totalSizeResult.rows[0].total_size) || 0,
       };
     } catch (error) {
       console.error('Error getting document stats:', error);
@@ -295,39 +372,39 @@ export class DocumentService {
 
   async getDocumentWithRelations(id: number): Promise<any> {
     try {
-      return await prisma.document.findUnique({
-        where: { id },
-        include: {
-          user: {
-            select: {
-              id: true,
-              name: true,
-              email: true,
-            },
-          },
-          embeddings: {
-            orderBy: { chunkIndex: 'asc' },
-            take: 5, // Limit embeddings for performance
-          },
-          chatSessions: {
-            orderBy: { createdAt: 'desc' },
-            take: 3, // Recent chat sessions
-            include: {
-              _count: {
-                select: {
-                  messages: true,
-                },
-              },
-            },
-          },
-          _count: {
-            select: {
-              embeddings: true,
-              chatSessions: true,
-            },
-          },
-        },
-      });
+      const documentResult = await query(`
+        SELECT d.id, d.user_id, d.title, d.file_name, d.file_type, d.file_size, d.file_url, 
+               d.extracted_text, d.summary, d.status, d.created_at, d.updated_at,
+               u.id as user_id, u.name as user_name, u.email as user_email
+        FROM documents d
+        LEFT JOIN users u ON d.user_id = u.id
+        WHERE d.id = $1
+      `, [id]);
+
+      if (documentResult.rows.length === 0) {
+        return null;
+      }
+
+      const docRow = documentResult.rows[0];
+      return {
+        id: docRow.id,
+        userId: docRow.user_id,
+        title: docRow.title,
+        fileName: docRow.file_name,
+        fileType: docRow.file_type,
+        fileSize: docRow.file_size,
+        fileUrl: docRow.file_url,
+        extractedText: docRow.extracted_text,
+        summary: docRow.summary,
+        status: docRow.status,
+        createdAt: docRow.created_at,
+        updatedAt: docRow.updated_at,
+        user: {
+          id: docRow.user_id,
+          name: docRow.user_name,
+          email: docRow.user_email,
+        }
+      };
     } catch (error) {
       console.error('Error getting document with relations:', error);
       throw new Error('Failed to get document details');
@@ -336,11 +413,29 @@ export class DocumentService {
 
   async getRecentDocuments(userId: number, limit = 5): Promise<Document[]> {
     try {
-      return await prisma.document.findMany({
-        where: { userId },
-        orderBy: { createdAt: 'desc' },
-        take: limit,
-      });
+      const result = await query(`
+        SELECT id, user_id, title, file_name, file_type, file_size, file_url, 
+               extracted_text, summary, status, created_at, updated_at
+        FROM documents 
+        WHERE user_id = $1
+        ORDER BY created_at DESC
+        LIMIT $2
+      `, [userId, limit]);
+
+      return result.rows.map(row => ({
+        id: row.id,
+        userId: row.user_id,
+        title: row.title,
+        fileName: row.file_name,
+        fileType: row.file_type,
+        fileSize: row.file_size,
+        fileUrl: row.file_url,
+        extractedText: row.extracted_text,
+        summary: row.summary,
+        status: row.status,
+        createdAt: row.created_at,
+        updatedAt: row.updated_at,
+      }));
     } catch (error) {
       console.error('Error getting recent documents:', error);
       throw new Error('Failed to get recent documents');
@@ -361,20 +456,16 @@ export class DocumentService {
         const chunk = chunks[i];
         const embedding = await aiService.generateEmbedding(chunk);
         
-        await prisma.documentEmbedding.create({
-          data: {
-            documentId,
-            chunkIndex: i,
-            chunkText: chunk,
-            embedding,
-          },
-        });
+        await query(`
+          INSERT INTO document_embeddings (document_id, chunk_index, chunk_text, embedding, created_at, updated_at)
+          VALUES ($1, $2, $3, $4, NOW(), NOW())
+        `, [documentId, i, chunk, JSON.stringify(embedding)]);
       }
 
-      await this.update(documentId, { status: 'COMPLETED' });
+      await this.update(documentId, { status: DocumentStatus.COMPLETED });
     } catch (error) {
       console.error('Error generating embeddings:', error);
-      await this.update(documentId, { status: 'FAILED' });
+      await this.update(documentId, { status: DocumentStatus.FAILED });
       throw new Error('Failed to generate embeddings');
     }
   }
@@ -403,27 +494,46 @@ export class DocumentService {
 
   async searchSimilarDocuments(userId: number, queryText: string, limit = 5): Promise<Document[]> {
     try {
-      const queryEmbedding = await aiService.generateEmbedding(queryText);
+      const searchPattern = `%${queryText.toLowerCase()}%`;
+      const similarEmbeddings = await query(`
+        SELECT DISTINCT de.document_id as documentId
+        FROM document_embeddings de
+        JOIN documents d ON de.document_id = d.id
+        WHERE d.user_id = $1 
+          AND (LOWER(d.title) LIKE $3 OR LOWER(de.chunk_text) LIKE $3)
+        ORDER BY d.created_at DESC
+        LIMIT $2
+      `, [userId, limit, searchPattern]);
       
-      const similarEmbeddings = await prisma.$queryRaw<Array<{documentId: number}>>`
-        SELECT "documentId", 
-               (embedding <-> ${queryEmbedding}::vector) as distance
-        FROM "DocumentEmbedding" de
-        JOIN "Document" d ON de."documentId" = d.id
-        WHERE d."userId" = ${userId}
-        ORDER BY distance
-        LIMIT ${limit}
-      `;
+      const documentIds = [...new Set(similarEmbeddings.rows.map((e: any) => e.documentid))];
       
-      const documentIds = [...new Set(similarEmbeddings.map(e => e.documentId))];
-      
-      return await prisma.document.findMany({
-        where: {
-          id: { in: documentIds },
-          userId,
-        },
-        orderBy: { createdAt: 'desc' },
-      });
+      if (documentIds.length === 0) {
+        return [];
+      }
+
+      const placeholders = documentIds.map((_, index) => `$${index + 2}`).join(',');
+      const result = await query(`
+        SELECT id, user_id, title, file_name, file_type, file_size, file_url, 
+               extracted_text, summary, status, created_at, updated_at
+        FROM documents
+        WHERE id IN (${placeholders}) AND user_id = $1
+        ORDER BY created_at DESC
+      `, [userId, ...documentIds]);
+
+      return result.rows.map(row => ({
+        id: row.id,
+        userId: row.user_id,
+        title: row.title,
+        fileName: row.file_name,
+        fileType: row.file_type,
+        fileSize: row.file_size,
+        fileUrl: row.file_url,
+        extractedText: row.extracted_text,
+        summary: row.summary,
+        status: row.status,
+        createdAt: row.created_at,
+        updatedAt: row.updated_at,
+      }));
     } catch (error) {
       console.error('Error searching similar documents:', error);
       return [];

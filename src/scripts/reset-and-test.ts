@@ -1,60 +1,75 @@
-import { PrismaClient } from '@prisma/client';
+import { query, testDatabaseConnection } from '../config/database';
+import dotenv from 'dotenv';
+
+dotenv.config();
 
 async function resetAndTest() {
-  let prisma: PrismaClient | undefined;
-  
   try {
-    console.log('🔄 Creating fresh Prisma client...');
+    console.log('🔄 Testing fresh database connection...');
     
-    // Create a completely fresh client
-    prisma = new PrismaClient({
-      log: ['error'],
-      datasources: {
-        db: {
-          url: process.env.DATABASE_URL,
-        },
-      },
-    });
-
     console.log('🔌 Connecting to database...');
-    await prisma.$connect();
+    const isConnected = await testDatabaseConnection();
+    
+    if (!isConnected) {
+      console.log('❌ Connection failed');
+      return;
+    }
     
     console.log('✅ Connection successful');
     
     // Test with a simple query first
     console.log('📊 Testing simple query...');
-    const result = await prisma.$executeRaw`SELECT 1`;
-    console.log('Query result:', result);
+    const result = await query('SELECT 1 as test');
+    console.log('Query result:', result.rows[0]);
     
     // Now try counting users
     console.log('👥 Counting users...');
-    const userCount = await prisma.user.count();
+    const userCountResult = await query('SELECT COUNT(*) as count FROM users');
+    const userCount = parseInt(userCountResult.rows[0].count);
     console.log(`Found ${userCount} users`);
     
     if (userCount > 0) {
       console.log('📋 Listing users:');
-      const users = await prisma.user.findMany({
-        select: {
-          id: true,
-          email: true,
-          name: true,
-          createdAt: true
-        }
-      });
+      const usersResult = await query(`
+        SELECT id, email, name, created_at 
+        FROM users 
+        ORDER BY created_at DESC 
+        LIMIT 10
+      `);
       
-      users.forEach(user => {
+      usersResult.rows.forEach(user => {
         console.log(`  - ID: ${user.id}, Email: ${user.email}, Name: ${user.name}`);
       });
     } else {
       console.log('⚠️  No users found. You need to complete OAuth flow first.');
     }
     
+    // Test other tables
+    console.log('📊 Checking other tables...');
+    
+    try {
+      const docCountResult = await query('SELECT COUNT(*) as count FROM documents');
+      console.log(`📄 Documents: ${docCountResult.rows[0].count}`);
+    } catch (error) {
+      console.log('⚠️  Documents table may not exist');
+    }
+    
+    try {
+      const sessionCountResult = await query('SELECT COUNT(*) as count FROM chat_sessions');
+      console.log(`💬 Chat Sessions: ${sessionCountResult.rows[0].count}`);
+    } catch (error) {
+      console.log('⚠️  Chat sessions table may not exist');
+    }
+    
   } catch (error) {
     console.error('❌ Error:', error);
-  } finally {
-    if (prisma) {
-      console.log('🔌 Disconnecting...');
-      await prisma.$disconnect();
+    
+    if (error instanceof Error) {
+      if (error.message.includes('connect') || error.message.includes('ECONNREFUSED')) {
+        console.log('💡 Check your DATABASE_URL in .env file');
+      } else if (error.message.includes('does not exist')) {
+        console.log('💡 Make sure your database schema is set up');
+      }
     }
   }
 }

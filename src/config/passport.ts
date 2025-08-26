@@ -2,10 +2,15 @@ import passport from 'passport';
 import { Strategy as GoogleStrategy } from 'passport-google-oauth20';
 import { Strategy as JwtStrategy, ExtractJwt } from 'passport-jwt';
 import userService from '../services/userService';
+import dotenv from 'dotenv';
+
+// Load environment variables
+dotenv.config();
 
 // Configure Google OAuth Strategy
 if (process.env.GOOGLE_CLIENT_ID && process.env.GOOGLE_CLIENT_SECRET) {
-  passport.use(
+  console.log('🔐 Configuring Google OAuth Strategy');
+  passport.use('google',
     new GoogleStrategy(
       {
         clientID: process.env.GOOGLE_CLIENT_ID,
@@ -56,6 +61,11 @@ if (process.env.GOOGLE_CLIENT_ID && process.env.GOOGLE_CLIENT_SECRET) {
       }
     )
   );
+  console.log('✅ Google OAuth Strategy configured');
+} else {
+  console.log('⚠️  Google OAuth Strategy not configured - missing environment variables');
+  console.log('GOOGLE_CLIENT_ID:', process.env.GOOGLE_CLIENT_ID ? 'Present' : 'Missing');
+  console.log('GOOGLE_CLIENT_SECRET:', process.env.GOOGLE_CLIENT_SECRET ? 'Present' : 'Missing');
 }
 
 // Configure JWT Strategy
@@ -82,6 +92,9 @@ if (process.env.JWT_SECRET) {
       }
     )
   );
+  console.log('✅ JWT Strategy configured');
+} else {
+  console.log('⚠️  JWT Strategy not configured - missing JWT_SECRET');
 }
 
 // Serialize user for session

@@ -4,7 +4,7 @@ import authController from '../controllers/authController';
 import { authenticateToken, generateToken } from '../middleware/auth';
 import { validateRequest, sanitizeInput } from '../middleware/zodValidation';
 import { updateProfileSchema } from '../schemas';
-import type { User as PrismaUser } from '@prisma/client';
+import type { User } from '../types/user';
 
 const router = express.Router();
 
@@ -83,7 +83,7 @@ router.get('/me', authenticateToken, (req, res) => {
     return;
   }
 
-  const { passwordHash, ...userWithoutPassword } = req.user as PrismaUser;
+  const { passwordHash, ...userWithoutPassword } = req.user as User;
   res.json({ user: userWithoutPassword });
 });
 
@@ -92,17 +92,21 @@ router.get('/me', authenticateToken, (req, res) => {
 // @access  Private
 router.get('/verify', authenticateToken, (req, res) => {
   if (!req.user) {
+    console.log('🔒 Token verification failed - no user found');
     res.status(401).json({ error: 'Not authenticated' });
     return;
   }
   
-  const user = req.user as PrismaUser;
+  const user = req.user as User;
+  console.log(`✅ Token verification successful for user: ${user.email} (ID: ${user.id})`);
   res.json({ 
     valid: true, 
     user: {
       id: user.id,
       email: user.email,
-      name: user.name
+      name: user.name,
+      avatarUrl: user.avatarUrl,
+      createdAt: user.createdAt
     }
   });
 });

@@ -5,7 +5,7 @@ import morgan from 'morgan';
 import dotenv from 'dotenv';
 import compression from 'compression';
 import cookieParser from 'cookie-parser';
-import { testPrismaConnection } from './config/prisma';
+import { testDatabaseConnection } from './config/database';
 import passport from './config/passport';
 import { generalLimiter, addRateLimitHeaders } from './middleware/rateLimiting';
 
@@ -51,7 +51,7 @@ app.use('/docs', docsRoutes);
 
 // Health check endpoint
 app.get('/health', async (_req: Request, res: Response) => {
-  const dbStatus = await testPrismaConnection();
+  const dbStatus = await testDatabaseConnection();
   
   res.status(200).json({
     status: 'OK',
@@ -99,17 +99,17 @@ app.use((error: Error, _req: Request, res: Response, _next: Function) => {
 // Initialize database and start server
 const startServer = async (): Promise<void> => {
   try {
-    // Test Prisma database connection
-    console.log('🔌 Connecting to Supabase with Prisma...');
-    await testPrismaConnection();
+    // Test PostgreSQL database connection
+    console.log('🔌 Connecting to PostgreSQL database...');
+    await testDatabaseConnection();
     
     // Start server
     app.listen(port, () => {
       console.log(`🚀 Server is running on port ${port}`);
       console.log(`📊 Health check: http://localhost:${port}/health`);
       console.log(`🌍 Environment: ${process.env.NODE_ENV || 'development'}`);
-      console.log(`🗄️ Database: Supabase PostgreSQL with Prisma ORM`);
-      console.log(`📝 Run 'npm run db:push' to sync database schema`);
+      console.log(`🗄️ Database: PostgreSQL with native pg driver`);
+      console.log(`📝 Database schema should already be in place`);
     });
   } catch (error) {
     console.error('❌ Failed to start server:', error);

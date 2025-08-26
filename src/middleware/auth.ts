@@ -1,7 +1,7 @@
 import { Request, Response, NextFunction } from 'express';
 import jwt from 'jsonwebtoken';
 import userService from '../services/userService';
-import type { User as PrismaUser } from '@prisma/client';
+import type { User } from '../types/user';
 
 export interface JWTPayload {
   userId: number;
@@ -126,7 +126,7 @@ export const requireAdmin = (req: Request, res: Response, next: NextFunction): v
   // Note: Add admin role field to user model if needed
   // For now, check if user email contains admin domain
   const adminDomains = process.env.ADMIN_DOMAINS?.split(',') || [];
-  const isAdmin = adminDomains.some(domain => (req.user as PrismaUser)!.email.endsWith(domain));
+  const isAdmin = adminDomains.some(domain => (req.user as User)!.email.endsWith(domain));
 
   if (!isAdmin) {
     res.status(403).json({ 
@@ -140,7 +140,7 @@ export const requireAdmin = (req: Request, res: Response, next: NextFunction): v
 };
 
 // Generate JWT token
-export const generateToken = (user: PrismaUser): string => {
+export const generateToken = (user: User): string => {
   const jwtSecret = process.env.JWT_SECRET;
   const jwtExpiresIn = process.env.JWT_EXPIRES_IN || '7d';
 
