@@ -5,34 +5,40 @@ A TypeScript-based backend server for processing and summarizing research papers
 ## Tech Stack
 
 ### Core Framework
+
 - **Node.js** - Runtime environment
 - **Express.js** - Web framework
 - **TypeScript** - Type-safe JavaScript
 
 ### Security & Middleware
+
 - **helmet** - Security headers
 - **cors** - Cross-origin resource sharing
 - **morgan** - HTTP request logging
 - **multer** - File upload handling
 
 ### Authentication
+
 - **jsonwebtoken** - JWT token-based auth
 - **passport** - Authentication middleware
 - **passport-google-oauth20** - Google OAuth strategy
 - **passport-jwt** - JWT authentication strategy
 
 ### File Processing
+
 - **pdf-parse** - PDF text extraction
 - **mammoth** - Microsoft Word (.docx) processing
 - **xlsx** - Excel spreadsheet processing
 - **file-type** - File type detection
 
 ### AI Services
+
 - **openai** - OpenAI SDK (compatible with OpenRouter)
 - **@supabase/supabase-js** - Supabase client
 - **OpenRouter** - Access to DeepSeek R1 and other models
 
 ### Development Dependencies
+
 - **typescript** - TypeScript compiler
 - **ts-node** - TypeScript execution environment
 - **nodemon** - Development server with auto-restart
@@ -41,90 +47,10 @@ A TypeScript-based backend server for processing and summarizing research papers
 - **@typescript-eslint/parser** & **@typescript-eslint/eslint-plugin** - TypeScript ESLint support
 - **rimraf** - Cross-platform rm -rf
 
-## Project Setup Todo List
-
-### 1. Initial Setup
-- [*] Initialize Node.js project with package.json
-- [*] Install TypeScript and dependencies
-- [*] Set up TypeScript configuration (tsconfig.json)
-- [*] Configure ESLint for TypeScript
-- [*] Set up development environment with nodemon
-
-### 2. Project Structure
-- [x] Create src/ directory structure
-- [x] Set up controllers/ for route handlers
-- [x] Set up middleware/ for custom middleware
-- [x] Set up models/ for data models and types
-- [x] Set up services/ for business logic
-- [x] Set up utils/ for utility functions
-- [x] Set up routes/ for API endpoints
-- [x] Set up config/ for configuration files
-
-### 3. Core Server Setup
-- [x] Create main Express server (src/server.ts)
-- [x] Configure CORS, helmet, and morgan middleware
-- [x] Set up error handling middleware
-- [x] Configure environment variables with dotenv
-- [x] Set up basic health check endpoint
-
-### 4. Authentication System
-- [x] Set up JWT authentication middleware
-- [x] Implement Google OAuth 2.0 strategy (only authentication method)
-- [x] Implement authentication guards for protected routes
-- [x] Remove password-based authentication for security
-
-### 5. File Upload & Processing
-- [x] Configure multer for file uploads
-- [x] Implement PDF processing service
-- [x] Implement Word document processing
-- [x] Implement Excel file processing
-- [x] Add file type validation
-- [x] Set up file storage (Memory-based processing)
-
-### 6. Database Integration
-- [x] Choose between Supabase or MongoDB Atlas (Supabase + Prisma chosen)
-- [x] Set up database connection with Prisma ORM
-- [x] Define user data models/schemas in Prisma
-- [x] Define document data models/schemas in Prisma
-- [x] Set up vector storage for embeddings
-- [x] Create database migration scripts with Prisma
-
-### 7. AI Services Integration
-- [x] Set up OpenRouter with DeepSeek R1 model
-- [x] Configure OpenAI SDK to use OpenRouter endpoint
-- [x] Implement text summarization service
-- [x] Implement chat functionality
-- [x] Add vector embedding generation
-- [x] Create AI prompt templates
-- [x] Add error handling for AI service failures
-
-### 8. API Routes
-- [x] Create user authentication routes
-- [x] Create document upload routes
-- [x] Create document processing routes
-- [x] Create summarization routes
-- [x] Create chat/query routes
-- [x] Add API documentation endpoints
-
-### 9. Testing & Quality
-- [x] Set up Jest for testing
-- [x] Write unit tests for utilities
-- [x] Write integration tests for API endpoints
-- [x] Add API input validation with Zod
-- [x] Implement rate limiting
-- [x] Add request logging and monitoring
-
-### 10. Deployment Preparation
-- [x] Configure build scripts
-- [x] Set up environment configuration for production
-- [x] Create Docker configuration
-- [x] Set up CI/CD pipeline
-- [x] Configure hosting deployment scripts
-- [x] Set up environment variables templates
-
 ## Dependencies
 
 ### Production Dependencies
+
 ```json
 {
   "express": "^4.18.2",
@@ -148,6 +74,7 @@ A TypeScript-based backend server for processing and summarizing research papers
 ```
 
 ### Development Dependencies
+
 ```json
 {
   "@types/node": "^20.8.7",
@@ -230,15 +157,18 @@ This project uses **Supabase** as the PostgreSQL database provider with **Prisma
 ### Quick Setup
 
 1. **Create a Supabase Project**:
+
    - Go to [supabase.com](https://supabase.com) and create a new project
    - Wait for the project to be ready (usually 1-2 minutes)
 
 2. **Get Database Credentials**:
+
    - Go to Project Settings > Database
    - Copy the **Connection Pooling** URL for `DATABASE_URL` (port 6543)
    - Copy the **Direct Connection** URL for `DIRECT_URL` (port 5432)
 
 3. **Update Environment Variables** (only database URLs needed):
+
    ```env
    DATABASE_URL=postgresql://postgres.[PROJECT-REF]:[PASSWORD]@aws-1-region.pooler.supabase.com:6543/postgres
    DIRECT_URL=postgresql://postgres:[PASSWORD]@db.[PROJECT-REF].supabase.co:5432/postgres
@@ -248,7 +178,7 @@ This project uses **Supabase** as the PostgreSQL database provider with **Prisma
    ```bash
    npm run db:push
    ```
-
+<!-- 
 ### Database Management Commands
 
 ```bash
@@ -266,12 +196,13 @@ npm run db:studio
 
 # Reset database (warning: deletes all data)
 npm run db:reset
-```
+``` -->
 
 ### Database Schema
 
 The Prisma schema includes:
-- **Users** - JWT authentication and user profiles  
+
+- **Users** - JWT authentication and user profiles
 - **Documents** - Uploaded files with extracted text and summaries
 - **DocumentEmbeddings** - Vector embeddings for semantic search
 - **ChatSessions** - Chat conversation sessions
@@ -280,6 +211,7 @@ The Prisma schema includes:
 ### Authentication System
 
 This project uses **Google OAuth 2.0 ONLY** for secure authentication:
+
 - ✅ **JWT tokens** generated by your Express server after Google OAuth
 - ✅ **Google OAuth 2.0** with passport.js (only authentication method)
 - ✅ **No password storage** - enhanced security
@@ -294,61 +226,16 @@ Supabase supports the `pgvector` extension for vector operations. The schema is 
 
 This project uses OpenRouter to access the free DeepSeek R1 model. Here's how to set it up:
 
-### Configuration
-```typescript
-// src/config/openrouter.ts
-import OpenAI from 'openai';
-
-const openai = new OpenAI({
-  baseURL: "https://openrouter.ai/api/v1",
-  apiKey: process.env.OPENROUTER_API_KEY,
-  defaultHeaders: {
-    "HTTP-Referer": "https://localhost:3000", // Optional
-    "X-Title": "AI Research Paper Summarizer", // Optional
-  }
-});
-
-export { openai };
-```
-
-### Usage Example
-```typescript
-// src/services/summarization.ts
-import { openai } from '../config/openrouter';
-
-export async function summarizeText(text: string): Promise<string> {
-  try {
-    const completion = await openai.chat.completions.create({
-      model: "deepseek/deepseek-r1-0528:free",
-      messages: [
-        {
-          role: "system",
-          content: "You are an expert research paper summarizer. Provide concise, accurate summaries."
-        },
-        {
-          role: "user",
-          content: `Please summarize the following research paper text:\n\n${text}`
-        }
-      ],
-      max_tokens: 1000,
-      temperature: 0.7
-    });
-
-    return completion.choices[0]?.message?.content || "Summary not available";
-  } catch (error) {
-    console.error('Summarization error:', error);
-    throw new Error('Failed to generate summary');
-  }
-}
-```
 
 ### DeepSeek R1 Model Benefits
+
 - **Free tier**: No cost for basic usage
 - **High quality**: Advanced reasoning capabilities
 - **Fast responses**: Optimized for production use
 - **Research-focused**: Excellent for academic content
 
 ### Rate Limits
+
 - Check OpenRouter documentation for current rate limits
 - Implement exponential backoff for retries
 - Consider caching responses for repeated requests
@@ -356,11 +243,13 @@ export async function summarizeText(text: string): Promise<string> {
 ## API Endpoints
 
 ### 🏥 Health & Information
+
 - `GET /health` - Health check and system status
 - `GET /` - API information and available endpoints
 - `GET /docs` - Complete API documentation
 
 ### 🔐 Authentication (Google OAuth Only)
+
 - `GET /auth/google` - Initiate Google OAuth login
 - `GET /auth/google/callback` - Google OAuth callback handler
 - `GET /auth/profile` - Get current user profile (requires JWT)
@@ -370,6 +259,7 @@ export async function summarizeText(text: string): Promise<string> {
 - `GET /auth/verify` - Verify JWT token validity
 
 ### 📄 Document Management
+
 - `GET /documents` - Get user documents with pagination (requires JWT)
 - `POST /documents/upload` - Upload and process document (requires JWT)
 - `GET /documents/:id` - Get specific document details (requires JWT)
@@ -379,6 +269,7 @@ export async function summarizeText(text: string): Promise<string> {
 - `POST /documents/search` - Search similar documents using semantic query (requires JWT)
 
 ### 💬 Chat & AI Interaction
+
 - `POST /chat/sessions` - Create new chat session for a document (requires JWT)
 - `GET /chat/sessions` - Get user's chat sessions with pagination (requires JWT)
 - `GET /chat/sessions/:id` - Get specific chat session with message history (requires JWT)
@@ -387,6 +278,7 @@ export async function summarizeText(text: string): Promise<string> {
 - `POST /chat/query` - Quick query without creating persistent session (requires JWT)
 
 ### 📊 Rate Limits
+
 - **General API**: 100 requests per 15 minutes per IP
 - **Authentication**: 5 attempts per 15 minutes per IP
 - **File Upload**: 10 uploads per hour per IP
@@ -394,6 +286,7 @@ export async function summarizeText(text: string): Promise<string> {
 - **Search**: 100 searches per hour per IP
 
 ### 🛡️ Security Features
+
 - JWT-based authentication
 - Google OAuth 2.0 integration (only authentication method)
 - Input sanitization and validation with Zod
@@ -409,6 +302,7 @@ export async function summarizeText(text: string): Promise<string> {
 ### Authentication (Google OAuth Only)
 
 #### Google OAuth Login
+
 ```bash
 # Redirect user to Google OAuth:
 GET /auth/google
@@ -429,6 +323,7 @@ GET /auth/google
 ```
 
 #### Update Profile (Name Only)
+
 ```bash
 PUT /auth/profile
 Authorization: Bearer YOUR_JWT_TOKEN
@@ -442,6 +337,7 @@ Content-Type: application/json
 ### Document Management
 
 #### Upload Document
+
 ```bash
 POST /documents/upload
 Authorization: Bearer YOUR_JWT_TOKEN
@@ -453,6 +349,7 @@ title: "Research Paper Title" (optional)
 ```
 
 #### Get Documents
+
 ```bash
 GET /documents?page=1&limit=10&sortBy=createdAt&sortOrder=desc
 Authorization: Bearer YOUR_JWT_TOKEN
@@ -472,6 +369,7 @@ Authorization: Bearer YOUR_JWT_TOKEN
 ```
 
 #### Generate Summary
+
 ```bash
 POST /documents/123/summarize
 Authorization: Bearer YOUR_JWT_TOKEN
@@ -484,6 +382,7 @@ Authorization: Bearer YOUR_JWT_TOKEN
 ```
 
 #### Search Similar Documents
+
 ```bash
 POST /documents/search
 Authorization: Bearer YOUR_JWT_TOKEN
@@ -498,6 +397,7 @@ Content-Type: application/json
 ### Chat & AI Interaction
 
 #### Create Chat Session
+
 ```bash
 POST /chat/sessions
 Authorization: Bearer YOUR_JWT_TOKEN
@@ -510,6 +410,7 @@ Content-Type: application/json
 ```
 
 #### Send Message
+
 ```bash
 POST /chat/sessions/456/messages
 Authorization: Bearer YOUR_JWT_TOKEN
@@ -529,6 +430,7 @@ Content-Type: application/json
 ```
 
 #### Quick Query
+
 ```bash
 POST /chat/query
 Authorization: Bearer YOUR_JWT_TOKEN
@@ -543,6 +445,7 @@ Content-Type: application/json
 ### Error Responses
 
 #### Validation Error (400)
+
 ```json
 {
   "error": "Validation failed",
@@ -557,6 +460,7 @@ Content-Type: application/json
 ```
 
 #### Authentication Error (401)
+
 ```json
 {
   "error": "Access denied",
@@ -565,6 +469,7 @@ Content-Type: application/json
 ```
 
 #### Rate Limit Error (429)
+
 ```json
 {
   "error": "Too many requests",
@@ -572,7 +477,3 @@ Content-Type: application/json
   "retryAfter": "15 minutes"
 }
 ```
-
-## License
-
-MIT
