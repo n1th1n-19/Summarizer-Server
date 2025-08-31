@@ -1,4 +1,5 @@
 import { User } from './user';
+import { Express } from 'express-serve-static-core';
 
 declare global {
   namespace Express {
@@ -7,3 +8,5 @@ declare global {
     }
   }
 }
+
+export {};

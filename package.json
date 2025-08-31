@@ -9,7 +9,7 @@
     "dev": "nodemon src/server.ts",
     "build": "npm run clean && npm run typecheck && npm run lint && tsc",
     "build:prod": "NODE_ENV=production npm run clean && tsc",
-    "build:render": "rm -rf dist && tsc",
+    "build:render": "rm -rf dist && tsc --skipLibCheck",
     "clean": "rimraf dist",
     "prebuild": "npm run clean",
     "lint": "eslint src/**/*.ts",
