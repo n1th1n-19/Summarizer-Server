@@ -39,7 +39,7 @@ export class DocumentController {
         fileName: req.file.originalname,
         fileType: req.file.mimetype,
         fileSize: req.file.size,
-        extractedText: extractedText,
+        extractedText,
       });
 
       // Generate summary asynchronously

@@ -39,7 +39,7 @@ async function testDatabase() {
         console.log('⚠️  No users found. Complete OAuth flow to create first user.');
       }
     } else {
-      console.log('❌ Users table does not exist. Run: npx prisma db push');
+      console.log('❌ Users table does not exist. Check your database schema setup.');
     }
 
   } catch (error) {

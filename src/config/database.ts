@@ -10,7 +10,7 @@ if (!process.env.DATABASE_URL) {
   process.exit(1);
 }
 
-console.log('🔌 Connecting to database:', process.env.DATABASE_URL?.substring(0, 30) + '...');
+console.log(`🔌 Connecting to database: ${process.env.DATABASE_URL?.substring(0, 30)}...`);
 
 // Database connection pool
 const pool = new Pool({

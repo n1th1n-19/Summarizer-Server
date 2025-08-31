@@ -10,12 +10,19 @@ A TypeScript-based backend server for processing and summarizing research papers
 - **Express.js** - Web framework
 - **TypeScript** - Type-safe JavaScript
 
+### Database
+
+- **PostgreSQL** - Primary database (via native pg driver)
+- **pg** - Native PostgreSQL client  
+- **Connection pooling** - Efficient database connections
+
 ### Security & Middleware
 
 - **helmet** - Security headers
 - **cors** - Cross-origin resource sharing
 - **morgan** - HTTP request logging
 - **multer** - File upload handling
+- **express-rate-limit** - API rate limiting
 
 ### Authentication
 
@@ -33,9 +40,10 @@ A TypeScript-based backend server for processing and summarizing research papers
 
 ### AI Services
 
+- **@google/generative-ai** - Google Gemini AI integration
 - **openai** - OpenAI SDK (compatible with OpenRouter)
-- **@supabase/supabase-js** - Supabase client
-- **OpenRouter** - Access to DeepSeek R1 and other models
+- **OpenRouter** - Access to DeepSeek and other models
+- **Dual AI Provider Support** - Gemini primary, OpenRouter fallback
 
 ### Development Dependencies
 
@@ -53,23 +61,27 @@ A TypeScript-based backend server for processing and summarizing research papers
 
 ```json
 {
-  "express": "^4.18.2",
+  "@google/generative-ai": "^0.24.1",
+  "compression": "^1.7.4",
+  "cookie-parser": "^1.4.6", 
   "cors": "^2.8.5",
-  "helmet": "^7.0.0",
+  "dotenv": "^16.3.1",
+  "express": "^4.18.2",
+  "express-rate-limit": "^7.1.5",
+  "file-type": "^18.7.0",
+  "helmet": "^7.1.0",
+  "jsonwebtoken": "^9.0.2",
+  "mammoth": "^1.6.0",
   "morgan": "^1.10.0",
   "multer": "^1.4.5-lts.1",
-  "jsonwebtoken": "^9.0.2",
+  "openai": "^4.20.1",
   "passport": "^0.6.0",
   "passport-google-oauth20": "^2.0.0",
   "passport-jwt": "^4.0.1",
   "pdf-parse": "^1.1.1",
-  "mammoth": "^1.6.0",
+  "pg": "^8.16.3",
   "xlsx": "^0.18.5",
-  "file-type": "^18.7.0",
-  "openai": "^4.20.1",
-  "dotenv": "^16.3.1",
-  "@supabase/supabase-js": "^2.38.5",
-  "zod": "^3.22.4"
+  "zod": "^3.25.76"
 }
 ```
 
@@ -77,27 +89,38 @@ A TypeScript-based backend server for processing and summarizing research papers
 
 ```json
 {
-  "@types/node": "^20.8.7",
-  "@types/express": "^4.17.20",
+  "@types/compression": "^1.7.4",
+  "@types/cookie-parser": "^1.4.4",
   "@types/cors": "^2.8.14",
+  "@types/express": "^4.17.21",
+  "@types/jest": "^29.5.6",
+  "@types/jsonwebtoken": "^9.0.4",
   "@types/morgan": "^1.9.7",
   "@types/multer": "^1.4.8",
-  "@types/jsonwebtoken": "^9.0.4",
+  "@types/node": "^20.8.7",
   "@types/passport": "^1.0.14",
   "@types/passport-google-oauth20": "^2.0.13",
   "@types/passport-jwt": "^3.0.11",
   "@types/pdf-parse": "^1.1.4",
-  "@typescript-eslint/eslint-plugin": "^6.9.0",
-  "@typescript-eslint/parser": "^6.9.0",
+  "@types/pg": "^8.15.5",
+  "@types/supertest": "^2.0.15",
+  "@typescript-eslint/eslint-plugin": "^6.21.0",
+  "@typescript-eslint/parser": "^6.21.0",
   "eslint": "^8.52.0",
+  "jest": "^29.7.0",
   "nodemon": "^3.0.1",
   "rimraf": "^5.0.5",
+  "supertest": "^6.3.3",
+  "ts-jest": "^29.1.1",
   "ts-node": "^10.9.1",
+  "tsconfig-paths": "^4.2.0",
   "typescript": "^5.2.2"
 }
 ```
 
 ## Getting Started
+
+### Local Development
 
 1. Clone the repository
 2. Install dependencies: `npm install`
@@ -106,15 +129,61 @@ A TypeScript-based backend server for processing and summarizing research papers
 5. Build for production: `npm run build`
 6. Start production server: `npm start`
 
+### Deployment to Render
+
+This project is ready to deploy to [Render](https://render.com) with zero configuration.
+
+#### Option 1: Using render.yaml (Recommended)
+
+1. **Fork this repository** to your GitHub account
+2. **Connect to Render**:
+   - Go to [render.com](https://render.com) and sign up
+   - Click "New" → "Blueprint" 
+   - Connect your GitHub repository
+3. **Configure Environment Variables** in Render dashboard:
+   ```env
+   GOOGLE_CLIENT_ID=your_google_client_id
+   GOOGLE_CLIENT_SECRET=your_google_client_secret
+   OPENROUTER_API_KEY=your_openrouter_api_key
+   GEMINI_API_KEY=your_gemini_api_key
+   ```
+4. **Deploy**: Render will automatically create both web service and PostgreSQL database
+
+#### Option 2: Manual Setup
+
+1. **Create Web Service**:
+   - Go to Render dashboard → "New" → "Web Service"
+   - Connect your repository
+   - Configure:
+     - **Build Command**: `npm install && npm run build:render`
+     - **Start Command**: `npm start`
+     - **Health Check Path**: `/health`
+2. **Create PostgreSQL Database**:
+   - Go to "New" → "PostgreSQL"  
+   - Note the connection string
+3. **Set Environment Variables**:
+   - Add all required environment variables
+   - Use the PostgreSQL connection string for `DATABASE_URL`
+
+#### Production URLs
+- **Backend**: `https://your-service-name.onrender.com`
+- **API Docs**: `https://your-service-name.onrender.com/docs`
+- **Health Check**: `https://your-service-name.onrender.com/health`
+
 ## Scripts
 
 - `npm run dev` - Start development server with nodemon
-- `npm run build` - Build TypeScript to JavaScript
+- `npm run build` - Build TypeScript with full validation (lint + typecheck + tests)
+- `npm run build:render` - Build for Render deployment (TypeScript only)
+- `npm run build:prod` - Production build (clean + TypeScript)
 - `npm run start` - Start production server
+- `npm run start:prod` - Start production server with NODE_ENV=production
 - `npm run lint` - Run ESLint
 - `npm run lint:fix` - Fix ESLint errors
 - `npm run typecheck` - Run TypeScript type checking
 - `npm run clean` - Clean build directory
+- `npm run test` - Run tests
+- `npm run test:ci` - Run tests for CI/CD
 
 ## Environment Variables
 
@@ -131,12 +200,12 @@ GOOGLE_CLIENT_SECRET=your_google_client_secret
 GOOGLE_CALLBACK_URL=http://localhost:3000/auth/google/callback
 FRONTEND_URL=http://localhost:3000
 
-# AI Service
+# AI Services
 OPENROUTER_API_KEY=your_openrouter_api_key
+GEMINI_API_KEY=your_gemini_api_key
 
-# Database (Supabase)
-DATABASE_URL=your_database_url
-DIRECT_URL=your_direct_database_url
+# Database (Supabase PostgreSQL)
+DATABASE_URL=postgresql://postgres.xxxxx:[PASSWORD]@aws-0-[region].pooler.supabase.com:6543/postgres
 ```
 
 ### Google OAuth Setup
@@ -150,63 +219,47 @@ DIRECT_URL=your_direct_database_url
    - `https://yourdomain.com/auth/google/callback` (production)
 6. Copy the Client ID and Client Secret to your `.env` file
 
-## Supabase + Prisma Database Setup
+## PostgreSQL Database Setup (Supabase)
 
-This project uses **Supabase** as the PostgreSQL database provider with **Prisma** as the ORM for type-safe database operations.
+This project uses **Supabase PostgreSQL** with native **pg** driver for direct database operations (no ORM).
 
-### Quick Setup
+### Quick Setup with Supabase
 
 1. **Create a Supabase Project**:
-
    - Go to [supabase.com](https://supabase.com) and create a new project
    - Wait for the project to be ready (usually 1-2 minutes)
 
-2. **Get Database Credentials**:
-
+2. **Get Database Connection String**:
    - Go to Project Settings > Database
-   - Copy the **Connection Pooling** URL for `DATABASE_URL` (port 6543)
-   - Copy the **Direct Connection** URL for `DIRECT_URL` (port 5432)
+   - Copy the **Connection string** under "Connection pooling"
+   - Format: `postgresql://postgres.xxxxx:[PASSWORD]@aws-0-[region].pooler.supabase.com:6543/postgres`
 
-3. **Update Environment Variables** (only database URLs needed):
-
+3. **Update Environment Variables**:
    ```env
-   DATABASE_URL=postgresql://postgres.[PROJECT-REF]:[PASSWORD]@aws-1-region.pooler.supabase.com:6543/postgres
-   DIRECT_URL=postgresql://postgres:[PASSWORD]@db.[PROJECT-REF].supabase.co:5432/postgres
+   DATABASE_URL=postgresql://postgres.xxxxx:[PASSWORD]@aws-0-[region].pooler.supabase.com:6543/postgres
    ```
 
-4. **Push Database Schema**:
-   ```bash
-   npm run db:push
-   ```
-<!-- 
-### Database Management Commands
+4. **Database Schema**:
+   - The application uses raw SQL queries with the native `pg` driver
+   - Database tables are created automatically on first run
+   - Uses Supabase's managed PostgreSQL with connection pooling
+   - No migrations or schema files needed
 
-```bash
-# Generate Prisma client (run after schema changes)
-npm run db:generate
+### Alternative PostgreSQL Providers
 
-# Push schema to database (for development)
-npm run db:push
-
-# Create and run migrations (for production)
-npm run db:migrate
-
-# View and edit data in browser
-npm run db:studio
-
-# Reset database (warning: deletes all data)
-npm run db:reset
-``` -->
+You can also use other PostgreSQL providers:
+- **Railway**, **Render**, **Neon**, **PlanetScale**, or local PostgreSQL
+- Just update the `DATABASE_URL` with your connection string
 
 ### Database Schema
 
-The Prisma schema includes:
+The database includes these tables:
 
-- **Users** - JWT authentication and user profiles
-- **Documents** - Uploaded files with extracted text and summaries
-- **DocumentEmbeddings** - Vector embeddings for semantic search
-- **ChatSessions** - Chat conversation sessions
-- **ChatMessages** - Individual chat messages and responses
+- **users** - JWT authentication and user profiles
+- **documents** - Uploaded files with extracted text and summaries
+- **document_embeddings** - Vector embeddings for semantic search
+- **chat_sessions** - Chat conversation sessions
+- **chat_messages** - Individual chat messages and responses
 
 ### Authentication System
 
@@ -216,29 +269,46 @@ This project uses **Google OAuth 2.0 ONLY** for secure authentication:
 - ✅ **Google OAuth 2.0** with passport.js (only authentication method)
 - ✅ **No password storage** - enhanced security
 - ✅ **Full control** over authentication logic
-- ✅ **Supabase only for database** - no auth dependencies
+- ✅ **Direct SQL queries** - no ORM overhead
+- ✅ **Supabase PostgreSQL** - managed database with connection pooling
 
-### Vector Storage
+### Database Operations
 
-Supabase supports the `pgvector` extension for vector operations. The schema is configured to store document embeddings as `Float[]` arrays, making it ready for semantic search and RAG implementations.
+- **Supabase PostgreSQL**: Managed database with automatic backups
+- **Native pg Driver**: Raw SQL queries with connection pooling
+- **Type Safety**: Custom TypeScript interfaces for database models
+- **Performance**: Direct database access without ORM overhead
+- **Vector Storage**: Supabase supports `pgvector` extension for embeddings
+- **Connection Pooling**: Uses Supabase's connection pooler (port 6543)
 
-## OpenRouter Integration with DeepSeek R1
+## Dual AI Provider Support
 
-This project uses OpenRouter to access the free DeepSeek R1 model. Here's how to set it up:
+This project implements a **dual AI provider system** with automatic fallback:
 
+### 🥇 Primary: Google Gemini
+- **Model**: Gemini 1.5 Flash
+- **Fast & free**: High-quality responses with generous free tier
+- **Handles**: Text summarization, chat, keyword extraction
 
-### DeepSeek R1 Model Benefits
+### 🥈 Fallback: OpenRouter + DeepSeek
+- **Model**: DeepSeek Chat via OpenRouter
+- **Reliable backup**: Automatic fallback if Gemini fails
+- **Embeddings**: Uses OpenAI-compatible embedding models
 
-- **Free tier**: No cost for basic usage
-- **High quality**: Advanced reasoning capabilities
-- **Fast responses**: Optimized for production use
-- **Research-focused**: Excellent for academic content
+### AI Service Benefits
+- **Reliability**: Dual provider ensures high availability
+- **Cost Optimization**: Free Gemini first, paid OpenRouter as backup
+- **Quality**: Both providers offer excellent AI capabilities
+- **Automatic Fallback**: Seamless switching between providers
 
-### Rate Limits
+### Setup Required
+```env
+# Primary AI Provider
+GEMINI_API_KEY=your_gemini_api_key
 
-- Check OpenRouter documentation for current rate limits
-- Implement exponential backoff for retries
-- Consider caching responses for repeated requests
+# Backup AI Provider  
+OPENROUTER_API_KEY=your_openrouter_api_key
+```
 
 ## API Endpoints
 

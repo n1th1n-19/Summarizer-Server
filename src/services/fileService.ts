@@ -93,7 +93,7 @@ export class FileService {
     }
   }
 
-  async validateFile(file: Express.Multer.File): Promise<{ isValid: boolean; error?: string }> {
+  async validateFile(file: any): Promise<{ isValid: boolean; error?: string }> {
     if (!file) {
       return { isValid: false, error: 'No file provided' };
     }
@@ -120,7 +120,7 @@ export class FileService {
     return { isValid: true };
   }
 
-  getFileInfo(file: Express.Multer.File) {
+  getFileInfo(file: any) {
     return {
       originalName: file.originalname,
       size: file.size,

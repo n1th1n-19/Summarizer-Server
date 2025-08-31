@@ -58,13 +58,14 @@ router.get('/google/callback',
       
       // Prepare user data without sensitive info
       const { passwordHash, ...safeUserData } = user as any;
+      void passwordHash; // Suppress unused variable warning
       console.log('📦 Prepared safe user data:', { id: safeUserData.id, email: safeUserData.email });
       
       // Redirect to frontend with token and user data
       const frontendUrl = process.env.FRONTEND_URL || 'http://localhost:3000';
       const encodedUserData = encodeURIComponent(JSON.stringify(safeUserData));
       const redirectUrl = `${frontendUrl}/auth/callback?token=${token}&user=${encodedUserData}`;
-      console.log('🚀 Redirecting to:', redirectUrl.substring(0, 100) + '...');
+      console.log(`🚀 Redirecting to: ${redirectUrl.substring(0, 100)}...`);
       
       res.redirect(redirectUrl);
     } catch (error) {
@@ -84,6 +85,7 @@ router.get('/me', authenticateToken, (req, res) => {
   }
 
   const { passwordHash, ...userWithoutPassword } = req.user as User;
+  void passwordHash; // Suppress unused variable warning
   res.json({ user: userWithoutPassword });
 });
 

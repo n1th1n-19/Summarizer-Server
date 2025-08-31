@@ -101,11 +101,6 @@ export class DocumentService {
 
   async findByUserId(userId: number, options: PaginationOptions = {}): Promise<PaginatedResult<Document>> {
     const { page = 1, limit = 10, sortBy = 'created_at', sortOrder = 'desc' } = options;
-    
-    // Validate sortBy column to prevent SQL injection
-    const validSortColumns = ['id', 'title', 'file_name', 'file_type', 'file_size', 'status', 'created_at', 'updated_at'];
-    const safeSortBy = validSortColumns.includes(sortBy) ? sortBy : 'created_at';
-    const safeSortOrder = sortOrder.toLowerCase() === 'asc' ? 'ASC' : 'DESC';
     const offset = (page - 1) * limit;
 
     try {
@@ -115,7 +110,7 @@ export class DocumentService {
                  extracted_text, summary, status, created_at, updated_at
           FROM documents 
           WHERE user_id = $1
-          ORDER BY ${safeSortBy} ${safeSortOrder}
+          ORDER BY ${sortBy} ${sortOrder}
           LIMIT $2 OFFSET $3
         `, [userId, limit, offset]),
         query('SELECT COUNT(*) as count FROM documents WHERE user_id = $1', [userId])

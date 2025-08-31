@@ -13,23 +13,6 @@ router.get('/', (_req, res) => {
     baseUrl: '/api',
     endpoints: {
       authentication: {
-        'POST /auth/register': {
-          description: 'Register a new user',
-          body: {
-            name: 'string (required)',
-            email: 'string (required)',
-            password: 'string (required, min 6 chars)'
-          },
-          response: 'JWT token and user data'
-        },
-        'POST /auth/login': {
-          description: 'Login user',
-          body: {
-            email: 'string (required)',
-            password: 'string (required)'
-          },
-          response: 'JWT token and user data'
-        },
         'GET /auth/google': {
           description: 'Google OAuth login',
           response: 'Redirect to Google OAuth'
@@ -184,9 +167,10 @@ router.get('/', (_req, res) => {
       }
     },
     authentication: {
-      type: 'JWT Bearer Token',
+      type: 'Google OAuth + JWT Bearer Token',
+      flow: '1. Login via /auth/google → 2. Get JWT token from callback → 3. Use token in Authorization header',
       header: 'Authorization: Bearer <token>',
-      note: 'Most endpoints require authentication. Include the JWT token in the Authorization header.'
+      note: 'Authentication is handled via Google OAuth. After successful OAuth, you receive a JWT token to use for API requests.'
     },
     errorHandling: {
       '400': 'Bad Request - Invalid input data',

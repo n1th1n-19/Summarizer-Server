@@ -1,6 +1,5 @@
 import passport from 'passport';
 import { Strategy as GoogleStrategy } from 'passport-google-oauth20';
-import { Strategy as JwtStrategy, ExtractJwt } from 'passport-jwt';
 import userService from '../services/userService';
 import dotenv from 'dotenv';
 
@@ -68,34 +67,8 @@ if (process.env.GOOGLE_CLIENT_ID && process.env.GOOGLE_CLIENT_SECRET) {
   console.log('GOOGLE_CLIENT_SECRET:', process.env.GOOGLE_CLIENT_SECRET ? 'Present' : 'Missing');
 }
 
-// Configure JWT Strategy
-if (process.env.JWT_SECRET) {
-  passport.use(
-    new JwtStrategy(
-      {
-        jwtFromRequest: ExtractJwt.fromAuthHeaderAsBearerToken(),
-        secretOrKey: process.env.JWT_SECRET,
-      },
-      async (payload, done) => {
-        try {
-          const user = await userService.findById(payload.userId);
-          
-          if (user) {
-            return done(null, user);
-          } else {
-            return done(null, false);
-          }
-        } catch (error) {
-          console.error('JWT Strategy error:', error);
-          return done(error, false);
-        }
-      }
-    )
-  );
-  console.log('✅ JWT Strategy configured');
-} else {
-  console.log('⚠️  JWT Strategy not configured - missing JWT_SECRET');
-}
+// Note: JWT verification is handled directly in middleware/auth.ts
+// No need for passport JWT strategy since we only use Google OAuth for initial auth
 
 // Serialize user for session
 passport.serializeUser((user: any, done) => {
