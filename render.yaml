@@ -23,9 +23,9 @@ services:
       - key: GOOGLE_CLIENT_SECRET
         sync: false
       - key: GOOGLE_CALLBACK_URL
-        value: https://summarizer-server.onrender.com/auth/google/callback
+        value: https://summarizer-server-q12q.onrender.com/auth/google/callback
       - key: FRONTEND_URL
-        value: https://summarizer-ui.onrender.com
+        value: https://summarizer-ui.vercel.app
       - key: OPENROUTER_API_KEY
         sync: false
       - key: GEMINI_API_KEY
