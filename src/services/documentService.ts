@@ -23,8 +23,20 @@ export interface PaginatedResult<T> {
 }
 
 export class DocumentService {
+  private sanitizeText(text: string | null): string | null {
+    if (!text) return null;
+    // Remove null bytes and other problematic characters for PostgreSQL
+    return text
+      .replace(/\x00/g, '') // Remove null bytes
+      .replace(/[\x01-\x08\x0B-\x0C\x0E-\x1F\x7F]/g, '') // Remove other control characters
+      .trim();
+  }
+
   async create(documentData: CreateDocumentData): Promise<Document> {
     try {
+      // Sanitize extracted text before database insertion
+      const sanitizedText = this.sanitizeText(documentData.extractedText || null);
+      
       const result = await query(`
         INSERT INTO documents (user_id, title, file_name, file_type, file_size, file_url, extracted_text, status, created_at, updated_at)
         VALUES ($1, $2, $3, $4, $5, $6, $7, $8, NOW(), NOW())
@@ -36,7 +48,7 @@ export class DocumentService {
         documentData.fileType,
         documentData.fileSize,
         documentData.fileUrl || null,
-        documentData.extractedText || null,
+        sanitizedText,
         DocumentStatus.PENDING
       ]);
       
@@ -202,11 +214,11 @@ export class DocumentService {
       }
       if (documentData.extractedText !== undefined && documentData.extractedText !== null) {
         setParts.push(`extracted_text = $${paramIndex++}`);
-        values.push(documentData.extractedText);
+        values.push(this.sanitizeText(documentData.extractedText));
       }
       if (documentData.summary !== undefined && documentData.summary !== null) {
         setParts.push(`summary = $${paramIndex++}`);
-        values.push(documentData.summary);
+        values.push(this.sanitizeText(documentData.summary));
       }
       if (documentData.status !== undefined && documentData.status !== null) {
         setParts.push(`status = $${paramIndex++}`);

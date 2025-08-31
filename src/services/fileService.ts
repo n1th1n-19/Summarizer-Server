@@ -31,24 +31,37 @@ export const upload = multer({
 });
 
 export class FileService {
+  private sanitizeText(text: string): string {
+    // Remove null bytes and other problematic characters
+    return text
+      .replace(/\x00/g, '') // Remove null bytes
+      .replace(/[\x01-\x08\x0B-\x0C\x0E-\x1F\x7F]/g, '') // Remove other control characters
+      .trim();
+  }
+
   async extractTextFromFile(buffer: Buffer, filename: string): Promise<string> {
     try {
       // Detect file type from buffer
       const fileType = await fileTypeFromBuffer(buffer);
       const ext = path.extname(filename).toLowerCase();
       
+      let extractedText = '';
+      
       // Extract text based on file type
       if (ext === '.pdf' || fileType?.mime === 'application/pdf') {
-        return await this.extractFromPDF(buffer);
+        extractedText = await this.extractFromPDF(buffer);
       } else if (ext === '.docx' || fileType?.mime === 'application/vnd.openxmlformats-officedocument.wordprocessingml.document') {
-        return await this.extractFromDocx(buffer);
+        extractedText = await this.extractFromDocx(buffer);
       } else if (ext === '.xlsx' || ext === '.xls' || fileType?.mime?.includes('spreadsheet')) {
-        return await this.extractFromExcel(buffer);
+        extractedText = await this.extractFromExcel(buffer);
       } else if (ext === '.txt') {
-        return buffer.toString('utf-8');
+        extractedText = buffer.toString('utf-8');
       } else {
         throw new Error('Unsupported file type');
       }
+      
+      // Sanitize the extracted text to remove null bytes and control characters
+      return this.sanitizeText(extractedText);
     } catch (error) {
       console.error('Text extraction error:', error);
       throw new Error(`Failed to extract text from file: ${error}`);

@@ -22,6 +22,7 @@
     "validate": "npm run typecheck && npm run lint && npm run test:ci",
     "docker:build": "docker build -t summarizer-server .",
     "docker:run": "docker run -p 3001:3001 --env-file .env summarizer-server",
+    "db:setup": "ts-node src/scripts/setup-database.ts",
     "health": "curl -f http://localhost:3001/health || exit 1"
   },
   "keywords": [
